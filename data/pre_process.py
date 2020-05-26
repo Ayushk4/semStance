@@ -52,7 +52,7 @@ REMOVE_TAGS = [
 
 ADD_TO_GLOVE = ["<number>", "<user>"]
 
-PUNCTS = '''()-[]{;}\,<>/@#$'%"^*_~.?!| +:=`'''
+PUNCTS = '''()-[]{;}\,<>/@#'%"^*_~.?!| +:=`'''
 
 def decontracted(phrase):
   phrase = re.sub(r"won\'t", "will not", phrase)
@@ -72,7 +72,7 @@ def decontracted(phrase):
   phrase = re.sub(r"3rd", " third ", phrase)
   return phrase
 
-def pre_process_single(tweet):
+def pre_process_single(tweet, t_id):
   tweet_toked_text = []
   de_emojified_text = tweet.encode('ascii', 'ignore').decode('ascii')
   de_emojified_text = EMOJI_PATTERN.sub(r' ', de_emojified_text)
@@ -93,9 +93,12 @@ def pre_process_single(tweet):
       if not_punct == True:
         if token.isdigit():
           tweet_toked_text.append("<number>")
+        elif token[0] == "$":
+          tweet_toked_text.append(token[1:])
         else:
           tweet_toked_text.append(token)
-
+  if len(tweet_toked_text) < 1:
+    print(tweet, tokens, t_id)
   return tweet_toked_text
 
 id2text = {}
@@ -107,9 +110,11 @@ for fil in glob.glob("data/scrapped_full/*"):
 
   tweet_id = full_tweet["id_str"]
 
-  id2text[tweet_id] = pre_process_single(full_tweet["full_text"])
-
-
+  txt = pre_process_single(full_tweet["full_text"], full_tweet["id"])
+  if len(txt) > 0 and txt != ["<user>"]:
+    id2text[tweet_id] = txt
+  else: 
+    print(txt, tweet_id)
 fo = open("data/wtwt_ids.json", "r")
 wtwt = json.load(fo)
 fo.close()
