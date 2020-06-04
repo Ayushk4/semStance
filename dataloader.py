@@ -61,17 +61,17 @@ class wtwtDataset:
                 pad_masks.append(single_tweet["pad_mask"])
                 target_buyr.append(single_tweet["extra_vectors"])
 
-            texts = torch.LongTensor(texts)
-            stances = torch.LongTensor(stances)
-            pad_masks = torch.BoolTensor(pad_masks).permute(0, 2, 1)
-            target_buyr = torch.Tensor(target_buyr).permute(0, 1, 2)
+            texts = torch.LongTensor(texts).permute(1, 0).to(params.device)
+            stances = torch.LongTensor(stances).to(params.device)
+            pad_masks = torch.BoolTensor(pad_masks).squeeze(1).to(params.device)
+            target_buyr = torch.Tensor(target_buyr).permute(1, 0, 2).to(params.device)
 
             b = params.batch_size if (idx + params.batch_size) < num_data else (num_data - idx)
-            # print(b)
-            assert texts.size() == torch.Size([b, 72]) # Maxlen = 70 + 2 for CLS and SEP
+
+            assert texts.size() == torch.Size([72, b]) # Maxlen = 70 + 2 for CLS and SEP
             assert stances.size() == torch.Size([b])
-            assert pad_masks.size() == torch.Size([b, 72, 1]) # Maxlen = 70 + 2 for CLS and SEP
-            assert target_buyr.size() == torch.Size([b, 72, 2]) # Maxlen = 70 + 2 for CLS and SEP
+            assert pad_masks.size() == torch.Size([b, 72]) # Maxlen = 70 + 2 for CLS and SEP
+            assert target_buyr.size() == torch.Size([72, b, 2]) # Maxlen = 70 + 2 for CLS and SEP
 
             # print("\n", texts, texts.size())
             # print("\n", stances, stances.size())

@@ -38,12 +38,12 @@ class TransformerModel(nn.Module):
         self.transformer_output_dims = self.input_dims
         self.last_att_linear = nn.Linear(self.transformer_output_dims, self.transformer_output_dims)
         self.last_att_tanh = nn.Tanh()
-        self.last_att_softmax = nn.Softmax(dim=1)
 
         self.classifier_mlp = nn.ModuleList([nn.Linear(self.transformer_output_dims, classifier_mlp_hidden),
                                     nn.Tanh(),
                                     nn.Linear(classifier_mlp_hidden, 4),
-                                    nn.Softmax(dim=1)]) # 4 labels = Support, Refute, unrelated, comment
+                                    # nn.Softmax(dim=1)
+                                ]) # 4 labels = Support, Refute, unrelated, comment
 
         self.__init_weights__()
 
@@ -53,21 +53,21 @@ class TransformerModel(nn.Module):
         self.last_att_linear.bias.data.zero_()
         self.last_att_linear.weight.data.uniform_(-initrange, initrange)
 
-        assert len(self.classifier_mlp) == 4
+        assert len(self.classifier_mlp) == 3
 
         for i in [0, 2]:
             self.classifier_mlp[i].bias.data.zero_()
             self.classifier_mlp[i].weight.data.uniform_(-initrange, initrange)
 
-    def forward(self, texts, target_buyer_vector, pad_mask):
+    def forward(self, texts, target_buyer_vector, pad_masks):
         texts = self.embedding_layer(texts) * math.sqrt(self.embed_dims)
         texts = self.pos_encoder(texts)
-        src_in = texts.concat(texts, target_buyer_vector)
+        src_in = torch.cat((texts, target_buyer_vector), axis=2)
 
-        trans_output = self.transformer_encoder(src_in, pad_mask)
+        trans_output = self.transformer_encoder(src_in, src_key_padding_mask=pad_masks).permute(1, 0, 2)
 
         e_att = self.last_att_tanh(self.last_att_linear(trans_output))
-        att_weights = self.last_att_softmax(torch.matmul(e_att, trans_output) * pad_mask)
+        att_weights = torch.softmax(torch.sum(e_att * trans_output, axis=2).masked_fill(pad_masks, -10000.0), 1).unsqueeze(2)
         scores = torch.sum(att_weights * trans_output, axis = 1)
 
         for module in self.classifier_mlp:
@@ -77,7 +77,7 @@ class TransformerModel(nn.Module):
         
 
 class PositionalEncoding(nn.Module):
-    def __init__(self, d_model, dropout=0.1, max_len=72):
+    def __init__(self, d_model, dropout=0.1, max_len=1000):
         super(PositionalEncoding, self).__init__()
         self.dropout = nn.Dropout(p=dropout)
 
@@ -86,12 +86,12 @@ class PositionalEncoding(nn.Module):
         div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0)
+        pe = pe.unsqueeze(0).permute(1, 0, 2)
 
         self.register_buffer('pe', pe)
 
     def forward(self, x):
-        x = x + self.pe[:x.size()[1], :]
+        x = x + self.pe[:x.size()[0], :]
         return self.dropout(x)
 
 if __name__ == "__main__":
@@ -114,29 +114,34 @@ if __name__ == "__main__":
     model = TransformerModel(glove_embed, embed_dims=params.glove_dims,
                                 num_heads=3, hidden_dims=params.glove_dims+2, num_layers=3,
                                 classifier_mlp_hidden=12, dropout=0.0)
-
+    model = model.to(params.device)
     texts, stances, pad_masks, target_buyr = dataset.train_dataset[0]
 
-    texts = model.embedding_layer(texts) * math.sqrt(model.embed_dims)
-    print(texts.size(), target_buyr.size())
-    texts = model.pos_encoder(texts)
-    print(texts[:, 0, :10], texts.size())
-    src_in = torch.cat((texts, target_buyr), axis=1)
-    print(src_in[:, 0:1, :], src_in.size())
+    scores = model.forward(texts,target_buyr,pad_masks)
+    criterion = nn.CrossEntropyLoss()
+    param_optimizer = list(model.parameters())
 
+    import torch.optim as optim
+    opt = optim.Adam(param_optimizer, lr = params.lr)
+    # import time
+    # start = time.time()
+    # preds = model(texts, target_buyr, pad_masks)
+    # loss = criterion(preds, stances)
+    # end = time.time()
+    # print(end - start)
+    # print(loss)
+    # start = time.time()
+    # loss.backward()
+    # opt.step()
+    # end = time.time()
+    # print(end - start)
 
-    # for i in model.named_parameters():
-        # print(i, "\n")
+    for run in range(10000):
+        preds = model(texts, target_buyr, pad_masks)
+        loss = criterion(preds, stances)
+        loss.backward()
+        opt.step()
+        print("%.4f" % loss.item(), torch.max(preds, axis=1)[1], stances.tolist())
 
-    # data = dataset[:params.batch_size]
-    # print(data[0])
-
-    # selff = model
-
-
-
-    # trans_output = selff.transformer_encoder(src_in, pad_mask)
-
-    # e_att = selff.last_att_tanh(selff.last_att_linear(trans_output))
-    # att_weights = selff.last_att_softmax(torch.matmul(e_att, trans_output) * pad_mask)
-    # scores = torch.sum(att_weights * trans_output, axis = 1)
+    print(model.embedding_layer.weight[-1, :])
+    # print(scores.size(), att_weights.size(), torch.sum(att_weights) ,e_att.size(), trans_output.size(), src_in.size(), texts.size())
