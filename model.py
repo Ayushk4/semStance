@@ -77,7 +77,7 @@ class TransformerModel(nn.Module):
         
 
 class PositionalEncoding(nn.Module):
-    def __init__(self, d_model, dropout=0.1, max_len=5000):
+    def __init__(self, d_model, dropout=0.1, max_len=72):
         super(PositionalEncoding, self).__init__()
         self.dropout = nn.Dropout(p=dropout)
 
@@ -86,17 +86,18 @@ class PositionalEncoding(nn.Module):
         div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0).transpose(0, 1)
+        pe = pe.unsqueeze(0)
+
         self.register_buffer('pe', pe)
 
     def forward(self, x):
-        x = x + self.pe[:x.size(0), :]
+        x = x + self.pe[:x.size()[1], :]
         return self.dropout(x)
 
 if __name__ == "__main__":
     import json
     from dataloader import wtwtDataset
-
+    torch.manual_seed(params.torch_seed)
     def open_it(pth):
         fo = open(pth, "r")
         j = json.load(fo)
@@ -105,21 +106,23 @@ if __name__ == "__main__":
 
     glove_embed = open_it("glove/embed_glove.json")
     
-    print(type(glove_embed), len(glove_embed), glove_embed[0])
+    # print(type(glove_embed), len(glove_embed), glove_embed[0])
     print(torch.Tensor(glove_embed).size())
 
     dataset = wtwtDataset()
-
+    print("\n\n")
     model = TransformerModel(glove_embed, embed_dims=params.glove_dims,
                                 num_heads=3, hidden_dims=params.glove_dims+2, num_layers=3,
-                                classifier_mlp_hidden=12, dropout=0.5)
+                                classifier_mlp_hidden=12, dropout=0.0)
 
     texts, stances, pad_masks, target_buyr = dataset.train_dataset[0]
 
     texts = model.embedding_layer(texts) * math.sqrt(model.embed_dims)
-    print(texts, texts.size())
+    print(texts.size(), target_buyr.size())
     texts = model.pos_encoder(texts)
-    src_in = torch.concat(texts, target_buyer_vector)
+    print(texts[:, 0, :10], texts.size())
+    src_in = torch.cat((texts, target_buyr), axis=1)
+    print(src_in[:, 0:1, :], src_in.size())
 
 
     # for i in model.named_parameters():
