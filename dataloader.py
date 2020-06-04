@@ -29,8 +29,8 @@ class wtwtDataset:
         print("After shuffling[0] = ", train_valid[0]["tweet_id"])
 
         if params.dummy_run == True:
-            self.train_dataset = self.batched_dataset(train_valid[0:1])
-            self.eval_dataset = self.batched_dataset(train_valid[1:2])
+            self.train_dataset = self.batched_dataset([train_valid[0]] * 2)
+            self.eval_dataset = self.batched_dataset([train_valid[1]] * 2)
         else:
             if params.test_mode == False:
                 split = (4 * len(train_valid)) // 5
@@ -63,15 +63,15 @@ class wtwtDataset:
 
             texts = torch.LongTensor(texts)
             stances = torch.LongTensor(stances)
-            pad_masks = torch.BoolTensor(pad_masks)
-            target_buyr = torch.Tensor(target_buyr).permute(0, 2, 1)
+            pad_masks = torch.BoolTensor(pad_masks).permute(0, 2, 1)
+            target_buyr = torch.Tensor(target_buyr).permute(0, 1, 2)
 
             b = params.batch_size if (idx + params.batch_size) < num_data else (num_data - idx)
             # print(b)
             assert texts.size() == torch.Size([b, 72]) # Maxlen = 70 + 2 for CLS and SEP
             assert stances.size() == torch.Size([b])
-            assert pad_masks.size() == torch.Size([b, 1, 72]) # Maxlen = 70 + 2 for CLS and SEP
-            assert target_buyr.size() == torch.Size([b, 2, 72]) # Maxlen = 70 + 2 for CLS and SEP
+            assert pad_masks.size() == torch.Size([b, 72, 1]) # Maxlen = 70 + 2 for CLS and SEP
+            assert target_buyr.size() == torch.Size([b, 72, 2]) # Maxlen = 70 + 2 for CLS and SEP
 
             # print("\n", texts, texts.size())
             # print("\n", stances, stances.size())
