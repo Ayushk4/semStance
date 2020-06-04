@@ -41,16 +41,15 @@ text_processor = TextPreProcessor(
     dicts=[emoticons]
 )
 
-
 REMOVE_TAGS = [
     "<emphasis>", "<kiss>", "<repeated>", "<laugh>", "<allcaps>",
     "</allcaps>", "<angel>", "<elongated>", "<tong>", "<annoyed>",
     "<censored>", "<happy>", "<percent>", "<wink>",
     "<headdesk>", "<surprise>", "<date>", "<time>", "<url>",
-    "<money>", "<sad>", "<email>", "<phone>", "<hashtag>", "</hashtag>"
+    "<sad>", "<email>", "<phone>", "<hashtag>", "</hashtag>"
     ]
 
-ADD_TO_GLOVE = ["<number>", "<user>"]
+ADD_TO_GLOVE = ["<number>", "<money>", "<user>"]
 
 PUNCTS = '''()-[]{;}\,<>/@#'%"^*_~.?!| +:=`'''
 
@@ -70,15 +69,95 @@ def decontracted(phrase):
   phrase = re.sub(r"1st", " first ", phrase)
   phrase = re.sub(r"2nd", " second ", phrase)
   phrase = re.sub(r"3rd", " third ", phrase)
+  phrase = re.sub(r"—", " ", phrase)
+  phrase = re.sub(r"-", " ", phrase)
+
   return phrase
+
+COMPANY_NORMALIZE = {
+                    # Hashtags:
+                      r"#CVS": "Cvs",
+                      r"#CVSHealth": "Cvs",
+                      r"#Aetna": "Avetna",
+                      r"#Aet": "Avetna",
+                      r"#cigna": "Cvgna",
+                      r"#Ci": "Cvgna",
+                      r"#expressscript": "Expresscripts",
+                      r"#esrx": "Expresscripts",
+                      r"#antheminc": "Antema",
+                      r"#anthemhealth": "Antema",
+                      r"#anthem": "Antema",
+                      r"#antm": "Antema",
+                      r"#antx": "Antema",
+                      r"#humana": "Huumana",
+                      r"#hum": "Huumana",
+
+                    # Cashtags: from https://stocks.tradingcharts.com/stocks/symbols/s
+                      r"\$CVS": "Cvs",
+                      r"\$AET": "Avetna",
+                      r"\$CIG": "Cvgna",
+                      r"\$CI": "Cvgna",
+                      r"\$ESRX": "Expresscripts",
+                      r"\$ANTX": "Antema",
+                      r"\$ANTM": "Antema",
+                      r"\$HUM": "Huumana",
+
+                    # User_mentions:
+                      r"@CVSHealth": "Cvs",
+                      r"@Aetna": "Avetna",
+                      r"@Cigna": "Cvgna",
+                      r"@ExpressScripts": "Expresscripts",
+                      r"@ExpressRxHelp": "Expresscripts",
+                      r"@AnthemInc": "Antema",
+                      r"@HumanaHelp": "Huumana",
+                      r"@Humana": "Huumana",
+
+                    # Company names or aacronymns
+                      r"CVS Health": "Cvs",
+                      r"CVSHealth": "Cvs",
+                      r"Aetna health": "Avetna",
+                      r"Aetnahealth": "Avetna",
+                      r"Cigna": "Cvgna",
+                      r"Express Scripts": "Expresscripts",
+                      r"ExpressScripts": "Expresscripts",
+                      r"ExpressScripts": "Expresscripts",
+                      r"Esrx": "Expresscripts",
+                      r"Esi": "Expresscripts",
+                      r"Anthem, Inc.": "Antema",
+                      r"Anthem, Inc.": "Antema",
+                      r"Anthem Inc.": "Antema",
+                      r"Anthem, Inc": "Antema",
+                      r"Anthem Inc": "Antema",
+                      r"AnthemInc": "Antema",
+                      r"Anthem Health": "Antema",
+                      r"AnthemHealth": "Antema",
+                      r"humana": "Huumana",
+
+                  # Capitalize so that ekphrasis doesn't split
+                      r"CVS": "Cvs",
+                      r"(^|[\/\\\- ])ci($|[\/\\\- ])": " Cvgna ",
+                      r"Aetna": "Avetna",
+                      r"Aet": "Avetna",
+                      r"Anthem": "Antema",
+                      r"Antm": "Antema",
+                      r"hum": "Huumana",
+                    }
+
+def normalize_companies(text):
+  for regex in COMPANY_NORMALIZE.keys():
+    normalized = COMPANY_NORMALIZE[regex]
+    text = re.sub(regex, " " + normalized + " ",
+                  text, flags=re.IGNORECASE)
+  return text
 
 def pre_process_single(tweet, t_id):
   tweet_toked_text = []
   de_emojified_text = tweet.encode('ascii', 'ignore').decode('ascii')
   de_emojified_text = EMOJI_PATTERN.sub(r' ', de_emojified_text)
   de_emojified_text = decontracted(de_emojified_text)
+  company_normalize_text = normalize_companies(de_emojified_text)
 
-  tokens = text_processor.pre_process_doc(de_emojified_text)
+  tokens = text_processor.pre_process_doc(company_normalize_text)
   for token in tokens:
     if token in REMOVE_TAGS:
       pass
@@ -94,11 +173,14 @@ def pre_process_single(tweet, t_id):
         if token.isdigit():
           tweet_toked_text.append("<number>")
         elif token[0] == "$":
-          tweet_toked_text.append(token[1:])
+          if token == "$":
+            pass
+          else:
+            tweet_toked_text.append(token[1:])
         else:
           tweet_toked_text.append(token)
   if len(tweet_toked_text) < 1:
-    print(tweet, tokens, t_id)
+    pass#print(tweet, tokens, t_id)
   return tweet_toked_text
 
 id2text = {}
@@ -114,7 +196,7 @@ for fil in glob.glob("data/scrapped_full/*"):
   if len(txt) > 0 and txt != ["<user>"]:
     id2text[tweet_id] = txt
   else: 
-    print(txt, tweet_id)
+    pass#print(txt, tweet_id)
 fo = open("data/wtwt_ids.json", "r")
 wtwt = json.load(fo)
 fo.close()
