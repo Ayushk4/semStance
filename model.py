@@ -15,6 +15,7 @@ import math
 class TransformerModel(nn.Module):
     def __init__(self, embedding, embed_dims, num_heads, hidden_dims, num_layers, classifier_mlp_hidden=16, dropout=0.5):
         super(TransformerModel, self).__init__()
+        torch.manual_seed(params.torch_seed)
 
         self.model_type = "Transformer"
         self.padding_idx = len(embedding) - 1

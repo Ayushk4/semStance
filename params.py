@@ -30,6 +30,8 @@ parser.add_argument("--glove_dims", type=int, default=glove_dims_, help="Dimensi
 parser.add_argument("--dummy_run", dest="dummy_run", action="store_true", help="To make the model run on only one training sample for debugging")
 parser.add_argument("--device", type=str, default="cuda", help="name of the device to be used for training")
 parser.add_argument("--concat", type=bool, default=True, help="Whether [0, 1] for target and [1, 0] should be concatenated or added")
+
+parser.add_argument("--run", type=str, default=None)
 parser.add_argument("--wandb",  dest="wandb", action="store_true", default=False)
 
 params = parser.parse_args()
