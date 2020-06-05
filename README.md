@@ -27,4 +27,5 @@ The Dataset used is Will-they-wont-they dataset (ACL'2020).
 - Extra vectors [1, 0] expand due to dropout
 - FFN in transformer set dims = 4 * transformer_ip_dims
 - Label smoothing on classification
+- Check Loss function according to andrej's blog.
 
