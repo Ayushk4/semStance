@@ -13,7 +13,7 @@ import math
 # output = MLP(o)
 
 class TransformerModel(nn.Module):
-    def __init__(self, embedding, embed_dims, num_heads, hidden_dims, num_layers, classifier_mlp_hidden=16, dropout=0.5):
+    def __init__(self, embedding, embed_dims, trans_input_dims, num_heads, hidden_dims, num_layers, classifier_mlp_hidden=16, dropout=0.5):
         super(TransformerModel, self).__init__()
         torch.manual_seed(params.torch_seed)
 
@@ -28,20 +28,24 @@ class TransformerModel(nn.Module):
         self.pos_encoder = PositionalEncoding(embed_dims, dropout)
 
         if params.concat:
-            self.input_dims = embed_dims + 2
-
-            encoder_layers = nn.TransformerEncoderLayer(self.input_dims, num_heads, hidden_dims, dropout)
-            self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers)
-
+            self.final_embed_dims = embed_dims + 2
         else:
             raise Exception("Bad idea! for params.concat")
+
+        self.input_dims = trans_input_dims
+        if trans_input_dims != embed_dims + 2:
+            self.embed2input_space = nn.Linear(self.final_embed_dims, self.input_dims)
+
+        encoder_layers = nn.TransformerEncoderLayer(self.input_dims, num_heads, hidden_dims, dropout)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers)
 
         self.transformer_output_dims = self.input_dims
         self.last_att_linear = nn.Linear(self.transformer_output_dims, self.transformer_output_dims)
         self.last_att_tanh = nn.Tanh()
 
+        self.dropout_mlp = nn.Dropout(p=dropout)
         self.classifier_mlp = nn.ModuleList([nn.Linear(self.transformer_output_dims, classifier_mlp_hidden),
-                                    nn.Tanh(),
+                                    nn.Tanh(), self.dropout_mlp,
                                     nn.Linear(classifier_mlp_hidden, 4),
                                     # nn.Softmax(dim=1)
                                 ]) # 4 labels = Support, Refute, unrelated, comment
@@ -51,12 +55,16 @@ class TransformerModel(nn.Module):
     def __init_weights__(self):
         initrange = 0.1
 
+        if self.input_dims != self.embed_dims + 2:
+            self.embed2input_space.bias.data.zero_()
+            self.embed2input_space.weight.data.uniform_(-initrange, initrange)
+
         self.last_att_linear.bias.data.zero_()
         self.last_att_linear.weight.data.uniform_(-initrange, initrange)
 
-        assert len(self.classifier_mlp) == 3
+        assert len(self.classifier_mlp) == 4
 
-        for i in [0, 2]:
+        for i in [0, 3]:
             self.classifier_mlp[i].bias.data.zero_()
             self.classifier_mlp[i].weight.data.uniform_(-initrange, initrange)
 
@@ -64,6 +72,10 @@ class TransformerModel(nn.Module):
         texts = self.embedding_layer(texts) * math.sqrt(self.embed_dims)
         texts = self.pos_encoder(texts)
         src_in = torch.cat((texts, target_buyer_vector), axis=2)
+
+        if self.input_dims != self.embed_dims + 2:
+            src_in = self.embed2input_space(src_in)
+        src_in = src_in.permute(1, 0, 2)
 
         trans_output = self.transformer_encoder(src_in, src_key_padding_mask=pad_masks).permute(1, 0, 2)
 
@@ -75,7 +87,7 @@ class TransformerModel(nn.Module):
             scores = module(scores)
 
         return scores
-        
+
 
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, dropout=0.1, max_len=1000):

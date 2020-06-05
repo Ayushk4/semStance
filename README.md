@@ -16,3 +16,15 @@ The Dataset used is Will-they-wont-they dataset (ACL'2020).
 - Then Index by index_dataset.py
 
 - Then start training the model
+
+
+# To Try
+
+- Transformer xavier init
+- Transformer use CLS for classification
+- Layer Norm in practise
+- First project embedding, then add position_embedding
+- Extra vectors [1, 0] expand due to dropout
+- FFN in transformer set dims = 4 * transformer_ip_dims
+- Label smoothing on classification
+
