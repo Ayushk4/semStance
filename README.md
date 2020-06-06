@@ -28,4 +28,5 @@ The Dataset used is Will-they-wont-they dataset (ACL'2020).
 - FFN in transformer set dims = 4 * transformer_ip_dims
 - Label smoothing on classification
 - Check Loss function according to andrej's blog.
+- AdamW optimizer with weight decay.
 
