@@ -14,7 +14,7 @@ if params.wandb:
 
 import torch
 from dataloader import wtwtDataset
-from model import TransformerModel
+from model_lstm import LSTMModel
 
 from transformers import AdamW, get_cosine_schedule_with_warmup
 import torch
@@ -106,11 +106,14 @@ else:
     target_names = [dataset_object.id2stance[id_] for id_ in range(0, 4)]
 
 ########## Create model #############
-model = TransformerModel(glove_embed, params.glove_dims, params.trans_ip_dims, params.num_heads,
-        params.trans_ff_hidden, params.num_layers, params.mlp_hidden, params.dropout)
+model = LSTMModel(glove_embed, params.glove_dims,
+                    classifier_mlp_hidden=params.mlp_hidden,
+                    bidirectional=True,
+                    dropout=params.dropout)
+
 model = model.to(params.device)
 print("Detected", torch.cuda.device_count(), "GPUs!")
-model = torch.nn.DataParallel(model)
+# model = torch.nn.DataParallel(model)
 if params.wandb:
     wandb.watch(model)
 
