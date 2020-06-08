@@ -20,13 +20,6 @@ class TransformerModel(nn.Module):
         self.model_type = "Transformer"
         self.padding_idx = len(embedding) - 1
 
-
-        self.embed_dims = embed_dims
-        self.embedding_layer = nn.Embedding(len(embedding), embed_dims, padding_idx=self.padding_idx)
-        self.embedding_layer.weight.data.copy_(torch.Tensor(embedding))
-
-        self.pos_encoder = PositionalEncoding(embed_dims, dropout)
-
         if params.concat:
             self.final_embed_dims = embed_dims + 2
         else:
@@ -52,21 +45,16 @@ class TransformerModel(nn.Module):
 
         self.__init_weights__()
 
+        self.embed_dims = embed_dims
+        self.embedding_layer = nn.Embedding(len(embedding), embed_dims, padding_idx=self.padding_idx)
+        self.embedding_layer.weight.data.copy_(torch.Tensor(embedding))
+
+        self.pos_encoder = PositionalEncoding(embed_dims, dropout)
+
     def __init_weights__(self):
-        initrange = 0.1
-
-        if self.input_dims != self.embed_dims + 2:
-            self.embed2input_space.bias.data.zero_()
-            self.embed2input_space.weight.data.uniform_(-initrange, initrange)
-
-        self.last_att_linear.bias.data.zero_()
-        self.last_att_linear.weight.data.uniform_(-initrange, initrange)
-
-        assert len(self.classifier_mlp) == 4
-
-        for i in [0, 3]:
-            self.classifier_mlp[i].bias.data.zero_()
-            self.classifier_mlp[i].weight.data.uniform_(-initrange, initrange)
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
 
     def forward(self, texts, target_buyer_vector, pad_masks):
         texts = self.embedding_layer(texts) * math.sqrt(self.embed_dims)
@@ -119,42 +107,27 @@ if __name__ == "__main__":
 
     glove_embed = open_it("glove/embed_glove.json")
     
-    # print(type(glove_embed), len(glove_embed), glove_embed[0])
+    # print(type(glove_embed) , len(glove_embed), glove_embed[0])
     print(torch.Tensor(glove_embed).size())
 
     dataset = wtwtDataset()
     print("\n\n")
-    model = TransformerModel(glove_embed, embed_dims=params.glove_dims,
-                                num_heads=3, hidden_dims=params.glove_dims+2, num_layers=3,
+    model = TransformerModel(glove_embed, embed_dims=100, trans_input_dims=102,
+                                num_heads=3, hidden_dims=100+2, num_layers=3,
                                 classifier_mlp_hidden=12, dropout=0.0)
     model = model.to(params.device)
-    texts, stances, pad_masks, target_buyr = dataset.train_dataset[0]
 
-    scores = model.forward(texts,target_buyr,pad_masks)
-    criterion = nn.CrossEntropyLoss()
-    param_optimizer = list(model.parameters())
+    loss = []
+    criterion = nn.CrossEntropyLoss(reduction='sum')
+    o = torch.zeros(4).to(params.device)
+    with torch.no_grad():
+        for i in range(len(dataset.train_dataset)):
+            texts, stances, pad_masks, target_buyr = dataset.train_dataset[i]
+            preds = model(texts, target_buyr, pad_masks)
+            loss.append(criterion(preds, stances))
+            o += torch.sum(preds, axis=0)
 
-    import torch.optim as optim
-    opt = optim.Adam(param_optimizer, lr = params.lr)
-    # import time
-    # start = time.time()
-    # preds = model(texts, target_buyr, pad_masks)
-    # loss = criterion(preds, stances)
-    # end = time.time()
-    # print(end - start)
-    # print(loss)
-    # start = time.time()
-    # loss.backward()
-    # opt.step()
-    # end = time.time()
-    # print(end - start)
-
-    for run in range(10000):
-        preds = model(texts, target_buyr, pad_masks)
-        loss = criterion(preds, stances)
-        loss.backward()
-        opt.step()
-        print("%.4f" % loss.item(), torch.max(preds, axis=1)[1], stances.tolist())
-
-    print(model.embedding_layer.weight[-1, :])
-    # print(scores.size(), att_weights.size(), torch.sum(att_weights) ,e_att.size(), trans_output.size(), src_in.size(), texts.size())
+    print(len(loss), loss[0].item())
+    import numpy as np
+    print(np.sum([i.item() for i in loss]))
+    print(o)

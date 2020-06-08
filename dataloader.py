@@ -2,7 +2,7 @@ import torch
 import json
 from params import params
 import random
-
+import numpy as np
 
 class wtwtDataset:
     def __init__(self):
@@ -29,26 +29,31 @@ class wtwtDataset:
         print("After shuffling[0] = ", train_valid[0]["tweet_id"])
 
         if params.dummy_run == True:
-            self.train_dataset = self.batched_dataset([train_valid[0]] * 2)
-            self.eval_dataset = self.batched_dataset([train_valid[1]] * 2)
+            self.train_dataset, self.criterion_weights = self.batched_dataset([train_valid[0]] * 2)
+            self.eval_dataset, _ = self.batched_dataset([train_valid[1]] * 2)
         else:
             if params.test_mode == False:
                 split = (4 * len(train_valid)) // 5
                 print("Train_dataset:", end= " ")
-                self.train_dataset = self.batched_dataset(train_valid[:split])
+                self.train_dataset, self.criterion_weights = self.batched_dataset(train_valid[:split])
                 print("Valid_dataset:", end= " ")
-                self.eval_dataset = self.batched_dataset(train_valid[split:])
+                self.eval_dataset, _ = self.batched_dataset(train_valid[split:])
             else:
                 print("Full_Train_dataset:", end= " ")
-                self.train_dataset = self.batched_dataset(train_valid)
+                self.train_dataset, self.criterion_weights = self.batched_dataset(train_valid)
                 print("Test_dataset:", end= " ")
-                self.eval_dataset = self.batched_dataset(test)
+                self.eval_dataset, _ = self.batched_dataset(test)
+
+        self.criterion_weights = torch.tensor(self.criterion_weights.tolist()).to(params.device)
+        print("Training loss weighing = ", self.criterion_weights)
 
     def batched_dataset(self, unbatched): # For batching full or a part of dataset.
         dataset = []
+        criterion_weights = np.zeros(4) + 0.0000001 # 4 labels 
 
         idx = 0
         num_data = len(unbatched)
+
         while idx < num_data:
             texts = []
             stances = []
@@ -57,7 +62,9 @@ class wtwtDataset:
 
             for single_tweet in unbatched[idx:min(idx+params.batch_size, num_data)]:
                 texts.append(single_tweet["text"])
-                stances.append(self.stance2id[single_tweet["stance"]])
+                this_stance_ids = self.stance2id[single_tweet["stance"]]
+                criterion_weights[this_stance_ids] += 1
+                stances.append(this_stance_ids)
                 pad_masks.append(single_tweet["pad_mask"])
                 target_buyr.append(single_tweet["extra_vectors"])
 
@@ -83,8 +90,10 @@ class wtwtDataset:
 
         print("num_batches=", len(dataset), " | num_data=", num_data)
 
-        return dataset
-        
+        criterion_weights = np.sum(criterion_weights)/criterion_weights
+ 
+        return dataset, criterion_weights/np.sum(criterion_weights)
+
 if __name__ == "__main__":
     dataset = wtwtDataset()
     print("Train_dataset Size =", len(dataset.train_dataset),

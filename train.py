@@ -12,6 +12,7 @@ if params.wandb:
     wandb.init(project="semstance", name=params.run)
     wandb.config.update(params)
 
+import torch
 from dataloader import wtwtDataset
 from model import TransformerModel
 
@@ -118,25 +119,30 @@ if params.wandb:
 def my_fancy_optimizer(warmup_proportion=0.1):
     num_train_optimization_steps = len(train_dataset) * params.n_epochs
 
-    param_optimizer = list(model.parameters())
-    # param_optimizer = [n for n in param_optimizer if 'pooler' not in n[0]]
-    # no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
-    # optimizer_grouped_parameters = [
-        # {'params': [p for n, p in param_optimizer if not any(
-            # nd in n for nd in no_decay)], 'weight_decay': 0.01},
-        # {'params': [p for n, p in param_optimizer if any(
-            # nd in n for nd in no_decay)], 'weight_decay': 0.0}
-    # ]
-
-    optimizer = AdamW(param_optimizer, lr = params.lr, correct_bias=True )
+    param_optimizer = list(model.named_parameters())
+    param_optimizer = [n for n in param_optimizer if 'pooler' not in n[0]]
+    no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+    optimizer_grouped_parameters = [
+        {'params': [p for n, p in param_optimizer if not any(
+            nd in n for nd in no_decay)], 'weight_decay': 0.01},
+        {'params': [p for n, p in param_optimizer if any(
+            nd in n for nd in no_decay)], 'weight_decay': 0.0}
+    ]
+    # print(optimizer_grouped_parameters)
+    print(num_train_optimization_steps, warmup_proportion*num_train_optimization_steps)
+    optimizer = AdamW(optimizer_grouped_parameters, lr = params.lr, correct_bias=True)
     scheduler = get_cosine_schedule_with_warmup(optimizer,
                     num_warmup_steps = int(warmup_proportion*num_train_optimization_steps),
-                    num_training_steps = num_train_optimization_steps )
+                    num_training_steps = num_train_optimization_steps)
 
     return optimizer, scheduler
 
-criterion = torch.nn.CrossEntropyLoss()
+criterion = torch.nn.CrossEntropyLoss(weight=dataset_object.criterion_weights, reduction='sum')
+# criterion = torch.nn.CrossEntropyLoss()
 optimizer, scheduler = my_fancy_optimizer()
+
+valid_loss, confuse_mat, classify_report = evaluate(model, eval_dataset, criterion, target_names)
+print(valid_loss)
 
 for epoch in range(params.n_epochs):
     print("\n\n========= Beginning", epoch+1, "epoch ==========")
