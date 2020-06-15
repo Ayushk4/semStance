@@ -1,4 +1,6 @@
 data/data
+srl/graphs
+srl/data
 glove
 checkpoints
 wandb
