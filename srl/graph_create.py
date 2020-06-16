@@ -3,14 +3,6 @@
 # Add ',', '.', to glove. Or Remove after SRL.
 # Handle <user>
 
-# Post process text in graphs:
-    # Normalize
-    #   - <user> back
-    #   - <number>
-    #   - <money>
-    #   - 
-    # Remove [?,.!|] 
-
 import sys
 assert len(sys.argv) == 3
 
@@ -36,7 +28,7 @@ fo.close()
 from_ = max(0, int(sys.argv[1]))
 to_ = min(int(sys.argv[2]), len(preprocessed_data))
 
-i = 0
+i = from_
 srl_tweet = []
 for tweet in preprocessed_data[from_:to_]:
     copy_ = tweet.copy()

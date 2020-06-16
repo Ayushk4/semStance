@@ -157,9 +157,6 @@ COMPANY_NORMALIZE = {
                       r" hum ": "Huumana",
                     }
 
-COMPANY_NAMES_Both_case = ["Cvs", "Avetna", "Cvgna", "Exprsx", "Antema", "Huumana",
-                            "cvs", "avetna", "cvgna", "exprsx", "antema", "huumana"]
-
 CLEANED_REMAP = {
             "cvs" : "Cvs",
             "avetna": "Avetna",
