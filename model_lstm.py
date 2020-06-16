@@ -57,15 +57,15 @@ class LSTMModel(nn.Module):
         # if self.input_dims != self.embed_dims + 2:
         #     src_in = self.embed2input_space(src_in)
         src_in = src_in.permute(1, 0, 2)
-    
+
         h, c = (self.hidden[0].expand(-1, src_in.shape[1], -1).contiguous(),
                 self.hidden[0].expand(-1, src_in.shape[1], -1).contiguous())
         l_out, _ = self.lstm(src_in, (h ,c))
-        trans_output = l_out.permute(1, 0, 2)
+        lstm_output = l_out.permute(1, 0, 2)
 
-        e_att = self.last_att_tanh(self.last_att_linear(trans_output))
-        att_weights = torch.softmax(torch.sum(e_att * trans_output, axis=2).masked_fill(pad_masks, -10000.0), 1).unsqueeze(2)
-        scores = torch.sum(att_weights * trans_output, axis = 1)
+        e_att = self.last_att_tanh(self.last_att_linear(lstm_output))
+        att_weights = torch.softmax(torch.sum(e_att * lstm_output, axis=2).masked_fill(pad_masks, -10000.0), 1).unsqueeze(2)
+        scores = torch.sum(att_weights * lstm_output, axis = 1)
 
         for module in self.classifier_mlp:
             scores = module(scores)

@@ -12,12 +12,12 @@ import json
 from collections import Counter
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--glove_dims", default=100, type=int)
+parser.add_argument("--glove_dims", default=200, type=int)
 params = parser.parse_args()
 
 GLOVE_PATH = "glove/glove.twitter.27B." + str(params.glove_dims) + "d.txt"
 print(GLOVE_PATH)
-DATASET = "data/data/normalized.json"
+DATASET = "srl/data/normalized.json"
 SAVE_PATH = "glove/smaller.json"
 
 def get_dataset_counts():

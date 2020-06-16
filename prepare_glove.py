@@ -10,11 +10,11 @@ from collections import Counter
 import numpy as np
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--glove_dims", default=100, type=int)
+parser.add_argument("--glove_dims", default=200, type=int)
 parser.add_argument("--min_occur", default=10, type=int)
 params = parser.parse_args()
 
-DATASET = "data/data/normalized.json"
+DATASET = "srl/data/normalized.json"
 GLOVE_SMALLER_PATH = "glove/smaller.json"
 SAVE_PATH = "glove/prepared.json"
 

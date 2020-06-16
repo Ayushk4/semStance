@@ -22,7 +22,7 @@ def embeds_and_normalize(pad_len, tokens, merger, tweet_id, stance): # stance an
     target = merger["target"]
 
     vectors = [[0, 0]]
-    new_toks = ["<cls"]
+    new_toks = ["<cls>"]
     src_key_padding_mask = [False]
     found_buyer = False
     found_target = False

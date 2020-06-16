@@ -75,10 +75,10 @@ class wtwtDataset:
 
             b = params.batch_size if (idx + params.batch_size) < num_data else (num_data - idx)
 
-            assert texts.size() == torch.Size([b, 72]) # Maxlen = 70 + 2 for CLS and SEP
+            assert texts.size() == torch.Size([b, 65]) # Maxlen = 63 + 2 for CLS and SEP
             assert stances.size() == torch.Size([b])
-            assert pad_masks.size() == torch.Size([b, 72]) # Maxlen = 70 + 2 for CLS and SEP
-            assert target_buyr.size() == torch.Size([b, 72, 2]) # Maxlen = 70 + 2 for CLS and SEP
+            assert pad_masks.size() == torch.Size([b, 65]) # Maxlen = 63 + 2 for CLS and SEP
+            assert target_buyr.size() == torch.Size([b, 65, 2]) # Maxlen = 63 + 2 for CLS and SEP
 
             # print("\n", texts, texts.size())
             # print("\n", stances, stances.size())

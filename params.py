@@ -2,9 +2,9 @@ import argparse
 
 parser = argparse.ArgumentParser()
 
-dataset_path = "data/data/indexed.json"
+dataset_path = "srl/data/indexed.json"
 glove_embed = "glove/embed_glove.json"
-glove_dims_ = 100
+glove_dims_ = 200
 
 parser.add_argument("--python_seed", type=int, default=49)
 parser.add_argument("--torch_seed", type=int, default=4214)
@@ -20,7 +20,6 @@ parser.add_argument("--n_epochs", type=int, default=100)
 
 parser.add_argument("--dropout", type=float, default=0.5, help="Dropout for position encoder and MLP classifier.")
 parser.add_argument("--mlp_hidden", type=int, default=16, help="Hidden dims size for a 2 layer MLP used for bringing attention lstm to tag space")
-parser.add_argument("--trans_ff_hidden", type=int, default=glove_dims_, help="Transformer attention hidden dims")
 parser.add_argument("--glove_dims", type=int, default=glove_dims_, help="Dimensions of glove twitter embeddings.")
 # parser.add_argument("--lstm_input_dims", type=int, default=102, help="Input_dimensions for LSTM.")
 
