@@ -136,7 +136,7 @@ def graph_mapping_create(graphs, tokens, t_id):
 
                 this_root_mask = ([0] * (idx_cache + root_idx_range[0])) + \
                                 ([1] * (root_idx_range[1] - root_idx_range[0])) + \
-                                ([0] * (pad_len - root_idx_range[1]))
+                                ([0] * (pad_len - (root_idx_range[1] + idx_cache)))
                 assert sum(this_root_mask) > 0
                 root_masks.append(this_root_mask)
 
@@ -145,7 +145,7 @@ def graph_mapping_create(graphs, tokens, t_id):
                 for child_idx_range in child_idx_ranges:
                     this_child_mask = ([0] * (idx_cache + child_idx_range[0])) + \
                                 ([1] * (child_idx_range[1] - child_idx_range[0])) + \
-                                ([0] * (pad_len - child_idx_range[1]))
+                                ([0] * (pad_len - (child_idx_range[1] + idx_cache)))
                     assert sum(this_child_mask) > 0
                     child_masks.append(this_child_mask)
                 end_child_idx = len(child_masks)
@@ -156,7 +156,7 @@ def graph_mapping_create(graphs, tokens, t_id):
                                 ([1] * (end_child_idx - start_child_idx))
                 root_to_child_masks.append(root_to_child_mask)
 
-                child_to_root_idxs.extend([len(root_masks)] * (end_child_idx - start_child_idx))
+                child_to_root_idxs.extend([len(root_masks)-1] * (end_child_idx - start_child_idx))
 
     # equalize_length(root_to_child_masks)
     # print(child_to_root_idxs, root_to_child_masks)

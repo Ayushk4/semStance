@@ -1,8 +1,3 @@
-# TODO:
-# Handling multiple sentences in the same tweet
-# Add ',', '.', to glove. Or Remove after SRL.
-# Handle <user>
-
 import sys
 assert len(sys.argv) == 3
 
