@@ -4,6 +4,11 @@ from params import params
 import random
 import numpy as np
 
+TEXT_PADDED_LEN = 65
+ROOT_NODES_PADDED_LEN = 15
+CHILD_NODES_PADDED_LEN = 36
+EDGE_LABEL_PADDED_LEN = CHILD_NODES_PADDED_LEN
+
 class wtwtDataset:
     def __init__(self):
         random.seed(params.python_seed)
@@ -60,6 +65,13 @@ class wtwtDataset:
             pad_masks = []
             target_buyr = []
 
+            edge_labels = []
+            lstm_root_masks = []
+            lstm_child_masks = []
+            gatt_masks_for_root = []
+            gatt_root_idxs = []
+            semantics_root_mask = []
+
             for single_tweet in unbatched[idx:min(idx+params.batch_size, num_data)]:
                 texts.append(single_tweet["text"])
                 this_stance_ids = self.stance2id[single_tweet["stance"]]
@@ -67,18 +79,39 @@ class wtwtDataset:
                 stances.append(this_stance_ids)
                 pad_masks.append(single_tweet["pad_mask"])
                 target_buyr.append(single_tweet["extra_vectors"])
+                
+                edge_labels.append(single_tweet["edge_labels"])
+                lstm_root_masks.append(single_tweet["root_masks_over_lstm"])
+                lstm_child_masks.append(single_tweet["child_masks_over_lstm"])
+                gatt_masks_for_root.append(single_tweet["child_masks_for_root_att"])
+                gatt_root_idxs.append(single_tweet["root_idxs_for_child_att"])
+                semantics_root_mask.append(single_tweet["sem_graph_pool_mask"])
 
             texts = torch.LongTensor(texts).to(params.device)
             stances = torch.LongTensor(stances).to(params.device)
             pad_masks = torch.BoolTensor(pad_masks).squeeze(1).to(params.device)
             target_buyr = torch.Tensor(target_buyr).to(params.device)
 
+            edge_labels = torch.LongTensor(edge_labels).to(params.device)
+            lstm_root_masks =  torch.BoolTensor(lstm_root_masks).to(params.device)
+            lstm_child_masks = torch.BoolTensor(lstm_child_masks).to(params.device)
+            gatt_masks_for_root = torch.BoolTensor(gatt_masks_for_root).to(params.device)
+            gatt_root_idxs = torch.LongTensor(gatt_root_idxs).to(params.device)
+            semantics_root_mask = torch.BoolTensor(semantics_root_mask).to(params.device)
+
             b = params.batch_size if (idx + params.batch_size) < num_data else (num_data - idx)
 
-            assert texts.size() == torch.Size([b, 65]) # Maxlen = 63 + 2 for CLS and SEP
+            assert texts.size() == torch.Size([b, TEXT_PADDED_LEN]) # Maxlen = 63 + 2 for CLS and SEP
             assert stances.size() == torch.Size([b])
-            assert pad_masks.size() == torch.Size([b, 65]) # Maxlen = 63 + 2 for CLS and SEP
-            assert target_buyr.size() == torch.Size([b, 65, 2]) # Maxlen = 63 + 2 for CLS and SEP
+            assert pad_masks.size() == torch.Size([b, TEXT_PADDED_LEN]) # Maxlen = 63 + 2 for CLS and SEP
+            assert target_buyr.size() == torch.Size([b, TEXT_PADDED_LEN, 2]) # Maxlen = 63 + 2 for CLS and SEP
+
+            assert edge_labels.size() == torch.Size([b, EDGE_LABEL_PADDED_LEN])
+            assert lstm_root_masks.size() == torch.Size([b, ROOT_NODES_PADDED_LEN, TEXT_PADDED_LEN])
+            assert lstm_child_masks.size() == torch.Size([b, CHILD_NODES_PADDED_LEN, TEXT_PADDED_LEN])
+            assert gatt_masks_for_root.size() == torch.Size([b, ROOT_NODES_PADDED_LEN, CHILD_NODES_PADDED_LEN])
+            assert gatt_root_idxs.size() == torch.Size([b, CHILD_NODES_PADDED_LEN])
+            assert semantics_root_mask.size() == torch.Size([b, ROOT_NODES_PADDED_LEN])
 
             # print("\n", texts, texts.size())
             # print("\n", stances, stances.size())
@@ -87,7 +120,7 @@ class wtwtDataset:
             
             dataset.append((texts, stances, pad_masks, target_buyr))
             idx += params.batch_size
-
+        # HANDLE CASES WITH NO NODES IN SEM GRAPH => Already handled.
         print("num_batches=", len(dataset), " | num_data=", num_data)
 
         criterion_weights = np.sum(criterion_weights)/criterion_weights

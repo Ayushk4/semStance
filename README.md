@@ -20,11 +20,4 @@ The Dataset used is Will-they-wont-they dataset (ACL'2020).
 
 # To Try
 
-- Transformer xavier init
-- Transformer use CLS for classification
-- Layer Norm in practise
-- First project embedding, then add position_embedding
-- Extra vectors [1, 0] expand due to dropout
-- FFN in transformer set dims = 4 * transformer_ip_dims
-- Label smoothing on classification
-
+- Try Edge features as embedding vectors and as random vectors

@@ -6,7 +6,7 @@ parser.add_argument("--glove_dims", default=200, type=int)
 parser.add_argument("--min_occur", default=10, type=int)
 params = parser.parse_args()
 
-DATASET_PATH = "srl/data/normalized.json"
+DATASET_PATH = "srl/data/batchable.json"
 GLOVE_PREPARED_PATH = "glove/prepared.json"
 
 IDX2WORD_SAVE_PATH = "glove/idx2word.json"

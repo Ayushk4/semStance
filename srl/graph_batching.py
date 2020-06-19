@@ -8,6 +8,7 @@ PAD_LABEL = "<PAD_LABEL>"
 ALL_LABELS = []
 EMPTY = 0
 def make_batchable(labels, lstm_root_masks, lstm_child_masks, gatt_masks_for_root, gatt_root_idxs):
+    global EMPTY, ALL_LABELS
     assert len(labels) < max_childs
     assert len(lstm_child_masks) < max_childs
     assert len(lstm_root_masks) < max_roots
@@ -17,8 +18,9 @@ def make_batchable(labels, lstm_root_masks, lstm_child_masks, gatt_masks_for_roo
 
     semantics_aug_mask = ([1] * len(lstm_root_masks)) + ([0] * (max_roots - len(lstm_root_masks)))
     assert sum(semantics_aug_mask) == len(lstm_root_masks)
-    if (len(lstm_root_masks)) == 0:
-        EMPTY+=1
+    # if (len(lstm_root_masks)) == 0:
+        # semantics_aug_mask = [1] * max_roots
+    #     EMPTY+=1
     assert len(semantics_aug_mask) == max_roots
 
     while True:
