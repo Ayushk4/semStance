@@ -15,7 +15,7 @@ class wtwtDataset:
         self.stance2id = {'comment': 0, 'unrelated': 1, 'support': 2, 'refute': 3}
         self.id2stance = {v: k for k,v in self.stance2id.items()}
         print(self.stance2id, "||", self.id2stance)
-
+        self.num_edge_labels = 26
         test = []
         train_valid = []
 
@@ -93,11 +93,11 @@ class wtwtDataset:
             target_buyr = torch.Tensor(target_buyr).to(params.device)
 
             edge_labels = torch.LongTensor(edge_labels).to(params.device)
-            lstm_root_masks =  torch.BoolTensor(lstm_root_masks).to(params.device)
-            lstm_child_masks = torch.BoolTensor(lstm_child_masks).to(params.device)
-            gatt_masks_for_root = torch.BoolTensor(gatt_masks_for_root).to(params.device)
+            lstm_root_masks =  ~torch.BoolTensor(lstm_root_masks).to(params.device)
+            lstm_child_masks = ~torch.BoolTensor(lstm_child_masks).to(params.device)
+            gatt_masks_for_root = ~torch.BoolTensor(gatt_masks_for_root).to(params.device)
             gatt_root_idxs = torch.LongTensor(gatt_root_idxs).to(params.device)
-            semantics_root_mask = torch.BoolTensor(semantics_root_mask).to(params.device)
+            semantics_root_mask = ~torch.BoolTensor(semantics_root_mask).to(params.device)
 
             b = params.batch_size if (idx + params.batch_size) < num_data else (num_data - idx)
 
@@ -117,12 +117,15 @@ class wtwtDataset:
             # print("\n", stances, stances.size())
             # print("\n", pad_masks, pad_masks.size())
             # print("\n", target_buyr, target_buyr.size())
-            
-            dataset.append((texts, stances, pad_masks, target_buyr))
+
+            dataset.append((texts, stances, pad_masks, target_buyr, edge_labels,
+                        lstm_root_masks, lstm_child_masks, gatt_masks_for_root,
+                        gatt_root_idxs, semantics_root_mask
+            ))
             idx += params.batch_size
         # HANDLE CASES WITH NO NODES IN SEM GRAPH => Already handled.
         print("num_batches=", len(dataset), " | num_data=", num_data)
-
+        assert edge_labels[0][-1] == self.num_edge_labels # And accordingly change in the model specification
         criterion_weights = np.sum(criterion_weights)/criterion_weights
  
         return dataset, criterion_weights/np.sum(criterion_weights)

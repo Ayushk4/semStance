@@ -31,8 +31,10 @@ def train(model, dataset, criterion):
     num_batch = 0
 
     for batch in dataset:
-        texts, stances, pad_masks, target_buyr = batch
-        preds = model(texts, target_buyr, pad_masks)
+        (texts, stances, pad_masks, target_buyr, edge_labels, lstm_root_masks, lstm_child_masks,
+            gatt_masks_for_root, gatt_root_idxs, semantics_root_mask) = batch
+        preds = model(texts, target_buyr, pad_masks, edge_labels, lstm_root_masks,
+                            lstm_child_masks, gatt_masks_for_root, gatt_root_idxs, semantics_root_mask)
         loss = criterion(preds, stances)
         
         loss.backward()
@@ -55,9 +57,11 @@ def evaluate(model, dataset, criterion, target_names):
 
     with torch.no_grad():
         for batch in dataset:
-            texts, stances, pad_masks, target_buyr = batch
-
-            preds = model(texts, target_buyr, pad_masks)
+            (texts, stances, pad_masks, target_buyr, edge_labels, lstm_root_masks, lstm_child_masks,
+                    gatt_masks_for_root, gatt_root_idxs, semantics_root_mask) = batch
+            preds = model(texts, target_buyr, pad_masks, edge_labels, lstm_root_masks,
+                    lstm_child_masks, gatt_masks_for_root, gatt_root_idxs, semantics_root_mask)
+            
             loss = criterion(preds, stances)
             
             predicts.extend(torch.max(preds, axis=1)[1].tolist())
@@ -106,10 +110,14 @@ else:
     target_names = [dataset_object.id2stance[id_] for id_ in range(0, 4)]
 
 ########## Create model #############
+
 model = LSTMModel(glove_embed, params.glove_dims,
-                    classifier_mlp_hidden=params.mlp_hidden,
-                    bidirectional=True,
-                    dropout=params.dropout)
+                params.fusion_alpha, dataset_object.num_edge_labels,
+                params.message_passing_hidden,
+                params.num_gatt_layers, params.gatt_dropout, 
+                classifier_mlp_hidden=params.mlp_hidden,
+                bidirectional=True,
+                dropout=params.dropout)
 
 model = model.to(params.device)
 print("Detected", torch.cuda.device_count(), "GPUs!")
@@ -172,7 +180,7 @@ for epoch in range(params.n_epochs):
         wandb.log(wandb_dict)
 
     epoch_len = len(str(params.n_epochs))
-    print_msg = (f'[{epoch:>{epoch_len}}/{params.n_epochs:>{epoch_len}}]     ' +
+    print_msg = (f'[{epoch+1:>{epoch_len}}/{params.n_epochs:>{epoch_len}}]     ' +
                     f'train_loss: {train_loss:.5f} ' +
                     f'valid_loss: {valid_loss:.5f}')
     print(print_msg)

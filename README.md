@@ -21,3 +21,4 @@ The Dataset used is Will-they-wont-they dataset (ACL'2020).
 # To Try
 
 - Try Edge features as embedding vectors and as random vectors
+- Separate MLP for Root and Child nodes

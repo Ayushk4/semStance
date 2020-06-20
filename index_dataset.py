@@ -56,7 +56,7 @@ for item in dataset:
     indexed_dataset.append(indexed_item)
 
 # Save idx2word, glove embed matrix, indexed dataset
-
+print("Saving files")
 def save_jason(obj, path):
     fo = open(path, "w+")
     json.dump(obj, fo)
