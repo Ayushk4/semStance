@@ -16,13 +16,13 @@ parser.add_argument("--dataset_path", type=str, default=dataset_path)
 parser.add_argument("--glove_embed", type=str, default=glove_embed)
 
 parser.add_argument("--batch_size", type=int, default=16)
-parser.add_argument("--lr", type=float, default=1e-5)
-parser.add_argument("--n_epochs", type=int, default=100)
+parser.add_argument("--lr", type=float, default=1e-6)
+parser.add_argument("--n_epochs", type=int, default=500)
  
 parser.add_argument("--fusion_alpha", type=float, default=0.5, help="Weightage to semantic vector. Lowest is zero for nil weightage to semantics.")
 parser.add_argument("--message_passing_hidden", type=int, default=2*glove_dims_, help="Dimension of hidden mlp in graph attention layers.")
 parser.add_argument("--num_gatt_layers", type=int, default=2, help="Number of graph attention layers stacked up.")
-parser.add_argument("--gatt_dropout", type=float, default=0.7, help="Dropout for graph attention model and its layers.")
+parser.add_argument("--gatt_dropout", type=float, default=0.2, help="Dropout for graph attention model and its layers.")
 
 parser.add_argument("--dropout", type=float, default=0.5, help="Dropout for position encoder and MLP classifier.")
 parser.add_argument("--mlp_hidden", type=int, default=16, help="Hidden dims size for a 2 layer MLP used for bringing attention lstm to tag space")

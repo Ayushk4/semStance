@@ -39,7 +39,7 @@ def train(model, dataset, criterion):
         
         loss.backward()
         optimizer.step()
-        scheduler.step()
+      #  scheduler.step()
 
         if num_batch % 100 == 0:
             print("Train loss at {}:".format(num_batch), loss.item())
@@ -81,7 +81,6 @@ def evaluate(model, dataset, criterion, target_names):
     print(confuse_mat)
 
     
-
     for labl in target_names:
         print(labl,"F1-score:", classify_report[labl]["f1-score"])
     print("Accu:", classify_report["accuracy"])
@@ -150,7 +149,8 @@ def my_fancy_optimizer(warmup_proportion=0.1):
 
 criterion = torch.nn.CrossEntropyLoss(weight=dataset_object.criterion_weights, reduction='sum')
 # criterion = torch.nn.CrossEntropyLoss()
-optimizer, scheduler = my_fancy_optimizer()
+# optimizer, scheduler = my_fancy_optimizer()
+optimizer = torch.optim.SGD(model.parameters(), lr = params.lr)
 
 valid_loss, confuse_mat, classify_report = evaluate(model, eval_dataset, criterion, target_names)
 print(valid_loss)
@@ -180,7 +180,7 @@ for epoch in range(params.n_epochs):
         wandb.log(wandb_dict)
 
     epoch_len = len(str(params.n_epochs))
-    print_msg = (f'[{epoch+1:>{epoch_len}}/{params.n_epochs:>{epoch_len}}]     ' +
+    print_msg = (f'[{epoch:>{epoch_len}}/{params.n_epochs:>{epoch_len}}]     ' +
                     f'train_loss: {train_loss:.5f} ' +
                     f'valid_loss: {valid_loss:.5f}')
     print(print_msg)

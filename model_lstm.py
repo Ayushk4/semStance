@@ -29,9 +29,6 @@ class LSTMModel(nn.Module):
         self.last_att_linear = nn.Linear(self.lstm_output_dims, self.lstm_output_dims)
         self.last_att_tanh = nn.Tanh()
 
-        self.sem_vector_dropout = nn.Dropout(p=dropout)
-        self.sem_vector_linear = nn.Linear(self.lstm_output_dims, self.lstm_output_dims)
-
         self.dropout_mlp = nn.Dropout(p=dropout)
         self.classifier_mlp = nn.ModuleList([nn.Linear(self.lstm_output_dims, classifier_mlp_hidden),
                                     nn.Tanh(), self.dropout_mlp,
@@ -40,6 +37,9 @@ class LSTMModel(nn.Module):
         self.lstm = nn.LSTM(embed_dims+2, embed_dims+2, bidirectional=True)
 
         self.__init_weights__()####
+
+        self.sem_vector_dropout = nn.Dropout(p=dropout)
+        self.sem_vector_linear = nn.Linear(2*self.lstm_output_dims, self.lstm_output_dims)
 
         self.semantics_gatt_model = graph_att_submodel(num_edge_labels, self.lstm_output_dims, num_gatt_layers,
                                             message_passing_hidden, gatt_dropout)
@@ -77,14 +77,15 @@ class LSTMModel(nn.Module):
 
         semantics_vector = self.semantics_gatt_model(edge_labels, lstm_output, att_weights, lstm_root_masks, 
                                                 lstm_child_masks, gatt_masks_for_root, gatt_root_idxs, semantics_root_mask)
-        semantics_vector = self.sem_vector_dropout(self.sem_vector_linear(semantics_vector))
+        # semantics_vector = self.sem_vector_dropout(self.sem_vector_linear(semantics_vector))
         # print(semantics_vector.size())
 
         att_weights = torch.softmax(att_weights, 1).unsqueeze(2)
         scores = torch.sum(att_weights * lstm_output, axis = 1)
         # print(scores.size())
 
-        scores = (semantics_vector *self.fusion_alpha) + (scores * (1 - self.fusion_alpha))
+        scores = self.sem_vector_dropout(self.sem_vector_linear(torch.cat((semantics_vector, scores), axis = 1)))
+        # scores = (semantics_vector *self.fusion_alpha) + (scores * (1 - self.fusion_alpha))
         for module in self.classifier_mlp:
             scores = module(scores)
 

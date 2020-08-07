@@ -22,3 +22,4 @@ The Dataset used is Will-they-wont-they dataset (ACL'2020).
 
 - Try Edge features as embedding vectors and as random vectors
 - Separate MLP for Root and Child nodes
+- Normalize based on number of root nodes while doing the fusion
