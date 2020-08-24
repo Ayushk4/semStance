@@ -1,6 +1,8 @@
 data/data
-srl/graphs
-srl/data
+sdp/graphs
+sdp/data
+sdp/
+
 glove
 checkpoints
 wandb

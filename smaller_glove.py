@@ -17,7 +17,7 @@ params = parser.parse_args()
 
 GLOVE_PATH = "glove/glove.twitter.27B." + str(params.glove_dims) + "d.txt"
 print(GLOVE_PATH)
-DATASET = "srl/data/batchable.json"
+DATASET = "sdp/prepped_sdp.json"
 SAVE_PATH = "glove/smaller.json"
 
 def get_dataset_counts():

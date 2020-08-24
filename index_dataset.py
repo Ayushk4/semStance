@@ -6,12 +6,12 @@ parser.add_argument("--glove_dims", default=200, type=int)
 parser.add_argument("--min_occur", default=10, type=int)
 params = parser.parse_args()
 
-DATASET_PATH = "srl/data/batchable.json"
+DATASET_PATH = "sdp/prepped_sdp.json"
 GLOVE_PREPARED_PATH = "glove/prepared.json"
 
 IDX2WORD_SAVE_PATH = "glove/idx2word.json"
 GLOVE_EMBED_SAVE_PATH = "glove/embed_glove.json"
-DATASET_SAVE_PATH = "srl/data/indexed.json"
+DATASET_SAVE_PATH = "sdp/indexed.json"
 
 
 # Load normalized dataset and smaller glove

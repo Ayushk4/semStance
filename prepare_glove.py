@@ -14,7 +14,7 @@ parser.add_argument("--glove_dims", default=200, type=int)
 parser.add_argument("--min_occur", default=10, type=int)
 params = parser.parse_args()
 
-DATASET = "srl/data/batchable.json"
+DATASET = "sdp/prepped_sdp.json"
 GLOVE_SMALLER_PATH = "glove/smaller.json"
 SAVE_PATH = "glove/prepared.json"
 
@@ -38,7 +38,7 @@ fo.close()
 
 print(len(ALL_TOKENS), len(glove.keys()))
 
-special_tokens = ["<buyer>", "<target>", "<number>", "<user>", "<money>", "<cls>", "<sep>", "<paddd>"]
+special_tokens = ["<buyer>", "<target>", "<number>", "<user>", "<money>", "<cls", "<sep>", "<paddd>"]
 COMPANY_NAMES = ["cvs", "avetna", "cvgna", "expresscripts", "antema",  "huumana"]
 
 for tok in ALL_TOKENS:
