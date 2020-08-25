@@ -3,11 +3,9 @@ import json
 from params import params
 import random
 import numpy as np
+from torch_geometric.data import Data, Batch
 
-TEXT_PADDED_LEN = 65
-ROOT_NODES_PADDED_LEN = 15
-CHILD_NODES_PADDED_LEN = 36
-EDGE_LABEL_PADDED_LEN = CHILD_NODES_PADDED_LEN
+TEXT_PADDED_LEN = 72
 
 class wtwtDataset:
     def __init__(self):
@@ -37,12 +35,25 @@ class wtwtDataset:
             self.train_dataset, self.criterion_weights = self.batched_dataset([train_valid[0]] * 2)
             self.eval_dataset, _ = self.batched_dataset([train_valid[1]] * 2)
         else:
-            if params.test_mode == False:
-                split = (4 * len(train_valid)) // 5
-                print("Train_dataset:", end= " ")
-                self.train_dataset, self.criterion_weights = self.batched_dataset(train_valid[:split])
-                print("Valid_dataset:", end= " ")
-                self.eval_dataset, _ = self.batched_dataset(train_valid[split:])
+            if params.test_mode != "True":
+                split = (len(train_valid)) // 5
+                valid_num = params.cross_valid_num
+                if valid_num == 4:
+                    split *= 4
+                    print("Train_dataset:", end= " ")
+                    self.train_dataset, self.criterion_weights = self.batched_dataset(train_valid[:split])
+                    print("Valid_dataset:", end= " ")
+                    self.eval_dataset, _ = self.batched_dataset(train_valid[split:])
+                elif valid_num == 0:
+                    print("Train_dataset:", end= " ")
+                    self.train_dataset, self.criterion_weights = self.batched_dataset(train_valid[split:])
+                    print("Valid_dataset:", end= " ")
+                    self.eval_dataset, _ = self.batched_dataset(train_valid[:split])
+                else:
+                    print("Train_dataset:", end= " ")
+                    self.train_dataset, self.criterion_weights = self.batched_dataset(train_valid[:(split * valid_num)] + train_valid[(split * (valid_num+1)):])
+                    print("Valid_dataset:", end= " ")
+                    self.eval_dataset, _ = self.batched_dataset(train_valid[(split * valid_num):(split * (valid_num+1))])
             else:
                 print("Full_Train_dataset:", end= " ")
                 self.train_dataset, self.criterion_weights = self.batched_dataset(train_valid)
@@ -65,72 +76,72 @@ class wtwtDataset:
             pad_masks = []
             target_buyr = []
 
+            edge_indices = []
             edge_labels = []
-            lstm_root_masks = []
-            lstm_child_masks = []
-            gatt_masks_for_root = []
-            gatt_root_idxs = []
-            semantics_root_mask = []
-
+            num_edges_in_batch = 0
             for single_tweet in unbatched[idx:min(idx+params.batch_size, num_data)]:
+                num_edges_in_batch += len(single_tweet["edges"])
+
                 texts.append(single_tweet["text"])
                 this_stance_ids = self.stance2id[single_tweet["stance"]]
                 criterion_weights[this_stance_ids] += 1
                 stances.append(this_stance_ids)
                 pad_masks.append(single_tweet["pad_mask"])
                 target_buyr.append(single_tweet["extra_vectors"])
-                
-                edge_labels.append(single_tweet["edge_labels"])
-                lstm_root_masks.append(single_tweet["root_masks_over_lstm"])
-                lstm_child_masks.append(single_tweet["child_masks_over_lstm"])
-                gatt_masks_for_root.append(single_tweet["child_masks_for_root_att"])
-                gatt_root_idxs.append(single_tweet["root_idxs_for_child_att"])
-                semantics_root_mask.append(single_tweet["sem_graph_pool_mask"])
+
+                if len(single_tweet["edges"]) == 0:
+                    edge_indices.append(torch.LongTensor([[], []]))
+                    edge_labels.append(torch.LongTensor([]))
+                else:
+                    this_edge_indices = torch.LongTensor([ [x[0], x[1]] for x in single_tweet["edges"]]).t().contiguous()
+                    assert this_edge_indices.size() == torch.Size([2, len(single_tweet["edges"])])
+                    edge_indices.append(this_edge_indices)
+
+                    this_edge_label = torch.LongTensor([x[3] for x in single_tweet["edges"]])
+                    assert this_edge_label.size() == torch.Size([len(single_tweet["edges"])])
+                    edge_labels.append(this_edge_label)
 
             texts = torch.LongTensor(texts).to(params.device)
             stances = torch.LongTensor(stances).to(params.device)
             pad_masks = torch.BoolTensor(pad_masks).squeeze(1).to(params.device)
             target_buyr = torch.Tensor(target_buyr).to(params.device)
 
-            edge_labels = torch.LongTensor(edge_labels).to(params.device)
-            lstm_root_masks =  ~torch.BoolTensor(lstm_root_masks).to(params.device)
-            lstm_child_masks = ~torch.BoolTensor(lstm_child_masks).to(params.device)
-            gatt_masks_for_root = ~torch.BoolTensor(gatt_masks_for_root).to(params.device)
-            gatt_root_idxs = torch.LongTensor(gatt_root_idxs).to(params.device)
-            semantics_root_mask = ~torch.BoolTensor(semantics_root_mask).to(params.device)
+            dummy_x = torch.randn(TEXT_PADDED_LEN, 1)
+            edge_indices = Batch.from_data_list([Data(x=dummy_x, edge_index=edge_index.to(params.device)) for edge_index in edge_indices]).edge_index
+            edge_labels = [edge_label.to(params.device) for edge_label in edge_labels]
+            edge_labels = torch.cat(edge_labels, 0)
+
+            from collections import Counter
+       	    counts = dict(Counter(edge_indices.tolist()[1]))
+            edge_weights = torch.tensor([1/counts[x] for x in edge_indices.tolist()[1]])
 
             b = params.batch_size if (idx + params.batch_size) < num_data else (num_data - idx)
-
             assert texts.size() == torch.Size([b, TEXT_PADDED_LEN]) # Maxlen = 63 + 2 for CLS and SEP
             assert stances.size() == torch.Size([b])
             assert pad_masks.size() == torch.Size([b, TEXT_PADDED_LEN]) # Maxlen = 63 + 2 for CLS and SEP
             assert target_buyr.size() == torch.Size([b, TEXT_PADDED_LEN, 2]) # Maxlen = 63 + 2 for CLS and SEP
 
-            assert edge_labels.size() == torch.Size([b, EDGE_LABEL_PADDED_LEN])
-            assert lstm_root_masks.size() == torch.Size([b, ROOT_NODES_PADDED_LEN, TEXT_PADDED_LEN])
-            assert lstm_child_masks.size() == torch.Size([b, CHILD_NODES_PADDED_LEN, TEXT_PADDED_LEN])
-            assert gatt_masks_for_root.size() == torch.Size([b, ROOT_NODES_PADDED_LEN, CHILD_NODES_PADDED_LEN])
-            assert gatt_root_idxs.size() == torch.Size([b, CHILD_NODES_PADDED_LEN])
-            assert semantics_root_mask.size() == torch.Size([b, ROOT_NODES_PADDED_LEN])
+            e_num = num_edges_in_batch
+            assert edge_indices.size() == torch.Size([2, e_num])
+            assert edge_labels.size() == torch.Size([e_num])
+            assert edge_weights.size() == torch.Size([e_num])
 
             # print("\n", texts, texts.size())
             # print("\n", stances, stances.size())
             # print("\n", pad_masks, pad_masks.size())
             # print("\n", target_buyr, target_buyr.size())
 
-            dataset.append((texts, stances, pad_masks, target_buyr, edge_labels,
-                        lstm_root_masks, lstm_child_masks, gatt_masks_for_root,
-                        gatt_root_idxs, semantics_root_mask
-            ))
+            dataset.append((texts, stances, pad_masks, target_buyr, edge_indices, edge_labels, edge_weights))
             idx += params.batch_size
+
         # HANDLE CASES WITH NO NODES IN SEM GRAPH => Already handled.
         print("num_batches=", len(dataset), " | num_data=", num_data)
-        assert edge_labels[0][-1] == self.num_edge_labels # And accordingly change in the model specification
         criterion_weights = np.sum(criterion_weights)/criterion_weights
- 
+
         return dataset, criterion_weights/np.sum(criterion_weights)
 
 if __name__ == "__main__":
     dataset = wtwtDataset()
     print("Train_dataset Size =", len(dataset.train_dataset),
             "Eval_dataset Size =", len(dataset.eval_dataset))
+    print(dataset.train_dataset[0])

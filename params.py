@@ -2,7 +2,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 
-dataset_path = "srl/data/indexed.json"
+dataset_path = "sdp/indexed.json"
 glove_embed = "glove/embed_glove.json"
 glove_dims_ = 200
 num_edge_labels = 26
@@ -10,7 +10,8 @@ num_edge_labels = 26
 parser.add_argument("--python_seed", type=int, default=49)
 parser.add_argument("--torch_seed", type=int, default=4214)
 parser.add_argument("--target_merger", type=str, default="Please Enter Test Merger in args", help="Test Merger in 'CVS_AET', 'ANTM_CI', 'AET_HUM', 'CI_ESRX'")
-parser.add_argument("--test_mode", dest="test_mode", action="store_true", help="If non given then train on train+valid and eval on test, else train on train, eval on valid")
+parser.add_argument("--test_mode", type=str, default="True")
+parser.add_argument("--cross_valid_num", type=int, default=4, help="For 5-fold crossvalidation, which part is valid set.")
 
 parser.add_argument("--dataset_path", type=str, default=dataset_path)
 parser.add_argument("--glove_embed", type=str, default=glove_embed)
@@ -19,8 +20,6 @@ parser.add_argument("--batch_size", type=int, default=16)
 parser.add_argument("--lr", type=float, default=1e-6)
 parser.add_argument("--n_epochs", type=int, default=500)
  
-parser.add_argument("--fusion_alpha", type=float, default=0.5, help="Weightage to semantic vector. Lowest is zero for nil weightage to semantics.")
-parser.add_argument("--message_passing_hidden", type=int, default=2*glove_dims_, help="Dimension of hidden mlp in graph attention layers.")
 parser.add_argument("--num_gatt_layers", type=int, default=2, help="Number of graph attention layers stacked up.")
 parser.add_argument("--gatt_dropout", type=float, default=0.2, help="Dropout for graph attention model and its layers.")
 
@@ -39,4 +38,4 @@ parser.add_argument("--wandb",  dest="wandb", action="store_true", default=False
 params = parser.parse_args()
 
 assert params.target_merger in ['CVS_AET', 'ANTM_CI', 'AET_HUM', 'CI_ESRX']
-assert params.fusion_alpha >= 0 and params.fusion_alpha < 1
+assert params.cross_valid_num >= 0 and params.cross_valid_num <=4
