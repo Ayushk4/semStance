@@ -21,9 +21,9 @@ parser.add_argument("--lr", type=float, default=1e-4)
 parser.add_argument("--n_epochs", type=int, default=50)
  
 parser.add_argument("--num_graph_blocks", type=int, default=3, help="Number of graph layers stacked up.")
-parser.add_argument("--graph_dropout", type=float, default=0.2, help="Dropout for graph model and its layers.")
+parser.add_argument("--graph_dropout", type=float, default=0.4, help="Dropout for graph model and its layers.")
 
-parser.add_argument("--dropout", type=float, default=0.2, help="Dropout for position encoder and MLP classifier.")
+parser.add_argument("--dropout", type=float, default=0.5, help="Dropout for position encoder and MLP classifier.")
 parser.add_argument("--mlp_hidden", type=int, default=16, help="Hidden dims size for a 2 layer MLP used for bringing attention lstm to tag space")
 parser.add_argument("--glove_dims", type=int, default=glove_dims_, help="Dimensions of glove twitter embeddings.")
 # parser.add_argument("--lstm_input_dims", type=int, default=102, help="Input_dimensions for LSTM.")
