@@ -31,10 +31,8 @@ def train(model, dataset, criterion):
     num_batch = 0
 
     for batch in dataset:
-        (texts, stances, pad_masks, target_buyr, edge_labels, lstm_root_masks, lstm_child_masks,
-            gatt_masks_for_root, gatt_root_idxs, semantics_root_mask) = batch
-        preds = model(texts, target_buyr, pad_masks, edge_labels, lstm_root_masks,
-                            lstm_child_masks, gatt_masks_for_root, gatt_root_idxs, semantics_root_mask)
+        (texts, stances, pad_masks, target_buyr, edge_indices, edge_labels, _) = batch
+        preds = model(texts, target_buyr, pad_masks, edge_indices, edge_labels)
         loss = criterion(preds, stances)
 
         loss.backward()
@@ -58,13 +56,11 @@ def evaluate(model, dataset, criterion, target_names):
 
     with torch.no_grad():
         for batch in dataset:
-            (texts, stances, pad_masks, target_buyr, edge_labels, lstm_root_masks, lstm_child_masks,
-                    gatt_masks_for_root, gatt_root_idxs, semantics_root_mask) = batch
-            preds = model(texts, target_buyr, pad_masks, edge_labels, lstm_root_masks,
-                    lstm_child_masks, gatt_masks_for_root, gatt_root_idxs, semantics_root_mask)
-            
+            (texts, stances, pad_masks, target_buyr, edge_indices, edge_labels, _) = batch
+            preds = model(texts, target_buyr, pad_masks, edge_indices, edge_labels)
+
             loss = criterion(preds, stances)
-            
+
             predicts.extend(torch.max(preds, axis=1)[1].tolist())
             gnd_truths.extend(stances.tolist())
             valid_losses.append(loss.item())
@@ -81,7 +77,6 @@ def evaluate(model, dataset, criterion, target_names):
     print("Valid_loss", mean_valid_loss)
     print(confuse_mat)
 
-    
     for labl in target_names:
         print(labl,"F1-score:", classify_report[labl]["f1-score"])
     print("Accu:", classify_report["accuracy"])
@@ -112,9 +107,8 @@ else:
 ########## Create model #############
 
 model = LSTMModel(glove_embed, params.glove_dims,
-                params.fusion_alpha, dataset_object.num_edge_labels,
-                params.message_passing_hidden,
-                params.num_gatt_layers, params.gatt_dropout, 
+                200, params.num_graph_blocks,
+                params.graph_dropout, 
                 classifier_mlp_hidden=params.mlp_hidden,
                 bidirectional=True,
                 dropout=params.dropout)
@@ -139,7 +133,7 @@ def my_fancy_optimizer(warmup_proportion=0.1):
         {'params': [p for n, p in param_optimizer if any(
             nd in n for nd in no_decay)], 'weight_decay': 0.0}
     ]
-    # print(optimizer_grouped_parameters)
+
     print(num_train_optimization_steps, warmup_proportion*num_train_optimization_steps)
     optimizer = AdamW(optimizer_grouped_parameters, lr = params.lr, correct_bias=True)
     scheduler = get_cosine_schedule_with_warmup(optimizer,
@@ -148,8 +142,8 @@ def my_fancy_optimizer(warmup_proportion=0.1):
 
     return optimizer, scheduler
 
-criterion = torch.nn.CrossEntropyLoss(weight=dataset_object.criterion_weights, reduction='sum')
-# criterion = torch.nn.CrossEntropyLoss()
+#criterion = torch.nn.CrossEntropyLoss(weight=dataset_object.criterion_weights, reduction='sum')
+criterion = torch.nn.CrossEntropyLoss(reduction='sum')
 # optimizer, scheduler = my_fancy_optimizer()
 optimizer = torch.optim.SGD(model.parameters(), lr = params.lr)
 

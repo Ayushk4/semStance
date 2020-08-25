@@ -41,7 +41,10 @@ class LSTMModel(nn.Module):
         self.edge_label_embed = nn.Embedding(num_edge_labels, self.node_feat_dims)
         torch.nn.init.uniform_(self.edge_label_embed.weight, -0.1, 0.1)
 
-        self.graph_modules = nn.ModuleList([graph_block(self.node_feat_dims, graph_dropout) for i in range(num_graph_block)])
+        if num_graph_block > 0:
+            self.graph_modules = nn.ModuleList([graph_block(self.node_feat_dims, graph_dropout) for i in range(num_graph_block)])
+        else:
+            self.graph_modules = [lambda x,y,z: x]
 
         self.hidden = (torch.autograd.Variable(torch.zeros(2, 1, embed_dims+2)).to(params.device),   
                         torch.autograd.Variable(torch.zeros(2, 1, embed_dims+2)).to(params.device))
@@ -116,7 +119,7 @@ if __name__ == "__main__":
         return j
     embedding = open_it(params.glove_embed)
 
-    model = LSTMModel(embedding, 200, 50, 3, graph_dropout=0, dropout=0.0)
+    model = LSTMModel(embedding, 200, 200, 3, graph_dropout=0, dropout=0.0)
     model = model.to(params.device)
 
     criterion = torch.nn.CrossEntropyLoss(reduction='mean')
