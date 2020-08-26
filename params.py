@@ -18,7 +18,7 @@ parser.add_argument("--glove_embed", type=str, default=glove_embed)
 
 parser.add_argument("--batch_size", type=int, default=16)
 parser.add_argument("--lr", type=float, default=1e-4)
-parser.add_argument("--n_epochs", type=int, default=50)
+parser.add_argument("--n_epochs", type=int, default=100)
  
 parser.add_argument("--num_graph_blocks", type=int, default=3, help="Number of graph layers stacked up.")
 parser.add_argument("--graph_dropout", type=float, default=0.4, help="Dropout for graph model and its layers.")
