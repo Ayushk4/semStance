@@ -79,7 +79,7 @@ class LSTMModel(nn.Module):
         nodes_attr = graph_input.reshape(-1, self.node_feat_dims)
         for module in self.graph_modules:
             nodes_attr = module(nodes_attr, edge_indices, edge_attr)
-        nodes_attr = nodes_attr.view(graph_input.size(0), -1, self.node_feat_dims) + graph_input
+        nodes_attr = nodes_attr.view(graph_input.size(0), -1, self.node_feat_dims)
 
         att_scores = self.att_score_linear(nodes_attr)
         att_scores = att_scores.masked_fill(pad_masks.unsqueeze(-1), -10000.0).softmax(1)
