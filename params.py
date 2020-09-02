@@ -21,7 +21,7 @@ parser.add_argument("--lr", type=float, default=1e-4)
 parser.add_argument("--n_epochs", type=int, default=100)
  
 parser.add_argument("--num_graph_blocks", type=int, default=3, help="Number of graph layers stacked up.")
-parser.add_argument("--graph_dropout", type=float, default=0.4, help="Dropout for graph model and its layers.")
+parser.add_argument("--graph_dropout", type=float, default=0.7, help="Dropout for graph model and its layers.")
 
 parser.add_argument("--dropout", type=float, default=0.5, help="Dropout for position encoder and MLP classifier.")
 parser.add_argument("--mlp_hidden", type=int, default=16, help="Hidden dims size for a 2 layer MLP used for bringing attention lstm to tag space")

@@ -20,7 +20,7 @@ class graph_block(nn.Module):
     def forward(self, x, edge_index, edge_attr):
         #print(x.shape, edge_index.shape, edge_attr.shape)
         x = self.norm1(self.gcn(x, edge_index, edge_attr))
-        x = self.norm2(self.linear(x))
+        x = self.norm2(x + self.linear(x))
         return x
 
 class GraphConv(MessagePassing):
