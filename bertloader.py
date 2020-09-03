@@ -3,8 +3,10 @@ import json
 from params import params
 import random
 import numpy as np
-from torch_geometric.data import Data, Batch
-from transformers import BertTokenizer
+#from torch_geometric.data import Data, Batch
+import sys
+sys.path.insert(0, "../../.transformers/src")
+from transformers import BertweetTokenizer
 
 NORMALIZED_DATA_PATH = "data/data/normalized.json"
 
@@ -41,7 +43,7 @@ class wtwtDataset:
         random.shuffle(train_valid)
         print("After shuffling[0] = ", train_valid[0]["tweet_id"])
 
-        self.bert_tokenizer = BertTokenizer.from_pretrained(params.bert_type)
+        self.bert_tokenizer = BertweetTokenizer.from_pretrained(params.bert_type)
         new_special_tokens_dict = {"additional_special_tokens": ["<number>", "<money>", "<user>"]}
         self.bert_tokenizer.add_special_tokens(new_special_tokens_dict)
         print("Loaded Bert Tokenizer")

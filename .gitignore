@@ -2,6 +2,7 @@ data/data
 sdp/graphs
 sdp/data
 sdp/
+srl/
 
 glove
 checkpoints

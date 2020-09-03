@@ -15,8 +15,10 @@ if params.wandb:
 import torch
 from bertloader import wtwtDataset
 
+import sys
+sys.path.insert(0, "../../.transformers/src")
 from transformers import AdamW, get_cosine_schedule_with_warmup
-from transformers import BertModel, BertPreTrainedModel, BertConfig
+from transformers import BertweetModel, BertPreTrainedModel, BertweetConfig
 import torch, torch.nn as nn
 import numpy as np
 from sklearn.metrics import confusion_matrix
@@ -106,21 +108,17 @@ else:
 
 ########## Create model #############
 
-class BERTStance(BertPreTrainedModel):
-    def __init__(self, config):
-        super().__init__(config)
-        self.bert = BertModel(config)
+class BERTStance(nn.Module):
+    def __init__(self, num_stances=4):
+        super(BERTStance, self).__init__()
+        self.bert = BertweetModel.from_pretrained(params.bert_type)
         self.drop = nn.Dropout(self.bert.config.hidden_dropout_prob)
-        self.classifier = nn.Linear(self.bert.config.hidden_size, config.num_stances)
-        self.init_weights()
+        self.classifier = nn.Linear(self.bert.config.hidden_size, num_stances)
     def forward(self, text, att_mask, token_type):
         _, pooled = self.bert(text, attention_mask=att_mask, token_type_ids=token_type)
         return self.classifier(self.drop(pooled))
 
-config = BertConfig.from_pretrained(params.bert_type)
-config.num_stances = 4
-
-model = BERTStance.from_pretrained(params.bert_type, config=config)
+model = BERTStance(4)
 
 embedding_size = model.bert.embeddings.word_embeddings.weight.size(1)
 new_embeddings = torch.FloatTensor(3, embedding_size).uniform_(-0.1, 0.1)
