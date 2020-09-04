@@ -25,14 +25,14 @@ class graph_block(nn.Module):
         return x
 
 class GraphConv(MessagePassing):
-    def __init__(self, in_channels, num_heads, dropout=0.5, aggr='add', root_weight=True, bias=True, mh_dropout=0.1, **kwargs):
+    def __init__(self, in_channels, num_heads, dropout=0.5, aggr='add', root_weight=True, bias=True, mh_dropout=0.3, **kwargs):
         super(GraphConv, self).__init__(aggr=aggr, **kwargs)
 
         self.in_channels = in_channels
         self.out_channels = in_channels
         in_c = in_channels
         self.dropout = dropout
-        self.nn = nn.Sequential(nn.Dropout(dropout), nn.Linear(in_c * 3, in_c), nn.LeakyReLU(0.2), nn.Linear(in_c, in_c))
+        self.nn = nn.Sequential(nn.Dropout(dropout), nn.Linear(in_c * 3, in_c), nn.LeakyReLU(0.2))#, nn.Linear(in_c, in_c))
         self.aggr = aggr
         self.mh_att = nn.MultiheadAttention(in_channels, num_heads, dropout=mh_dropout)
 
