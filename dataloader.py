@@ -114,6 +114,11 @@ class wtwtDataset:
             from collections import Counter
        	    counts = dict(Counter(edge_indices.tolist()[1]))
             edge_weights = torch.tensor([1/counts[x] for x in edge_indices.tolist()[1]])
+            # edge_masks wrt 1, [1] index is the i node, softmax for all its neighbours
+            edge_masks = [(edge_indices[1, :] == i) for i in edge_indices[1, :].tolist()]
+            edge_masks = torch.stack(edge_masks)
+            # Additive edge masks needed for torch v1.2
+            #edge_masks = torch.zeros(edge_masks.shape).to(edge_masks.device).masked_fill(~edge_masks, -10000.0)
 
             b = params.batch_size if (idx + params.batch_size) < num_data else (num_data - idx)
             assert texts.size() == torch.Size([b, TEXT_PADDED_LEN]) # Maxlen = 63 + 2 for CLS and SEP
@@ -125,13 +130,15 @@ class wtwtDataset:
             assert edge_indices.size() == torch.Size([2, e_num])
             assert edge_labels.size() == torch.Size([e_num])
             assert edge_weights.size() == torch.Size([e_num])
+            assert edge_masks.size() == torch.Size([e_num, e_num])
 
             # print("\n", texts, texts.size())
             # print("\n", stances, stances.size())
             # print("\n", pad_masks, pad_masks.size())
             # print("\n", target_buyr, target_buyr.size())
+            # print("\n", edge_masks[:20, :20], edge_indices)
 
-            dataset.append((texts, stances, pad_masks, target_buyr, edge_indices, edge_labels, edge_weights))
+            dataset.append((texts, stances, pad_masks, target_buyr, edge_indices, edge_labels, edge_weights, edge_masks))
             idx += params.batch_size
 
         # HANDLE CASES WITH NO NODES IN SEM GRAPH => Already handled.
@@ -145,3 +152,5 @@ if __name__ == "__main__":
     print("Train_dataset Size =", len(dataset.train_dataset),
             "Eval_dataset Size =", len(dataset.eval_dataset))
     print(dataset.train_dataset[0])
+    #while True:
+    #    pass

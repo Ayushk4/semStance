@@ -31,8 +31,8 @@ def train(model, dataset, criterion):
     num_batch = 0
 
     for batch in dataset:
-        (texts, stances, pad_masks, target_buyr, edge_indices, edge_labels, _) = batch
-        preds = model(texts, target_buyr, pad_masks, edge_indices, edge_labels)
+        (texts, stances, pad_masks, target_buyr, edge_indices, edge_labels, _, edge_masks) = batch
+        preds = model(texts, target_buyr, pad_masks, edge_indices, edge_labels, edge_masks)
         loss = criterion(preds, stances)
 
         loss.backward()
@@ -56,8 +56,8 @@ def evaluate(model, dataset, criterion, target_names):
 
     with torch.no_grad():
         for batch in dataset:
-            (texts, stances, pad_masks, target_buyr, edge_indices, edge_labels, _) = batch
-            preds = model(texts, target_buyr, pad_masks, edge_indices, edge_labels)
+            (texts, stances, pad_masks, target_buyr, edge_indices, edge_labels, _, edge_masks) = batch
+            preds = model(texts, target_buyr, pad_masks, edge_indices, edge_labels, edge_masks)
 
             loss = criterion(preds, stances)
 
@@ -108,7 +108,7 @@ else:
 
 model = LSTMModel(glove_embed, params.glove_dims,
                 200, params.num_graph_blocks,
-                params.graph_dropout, 
+                params.num_heads, params.graph_dropout, 
                 classifier_mlp_hidden=params.mlp_hidden,
                 bidirectional=True,
                 dropout=params.dropout)

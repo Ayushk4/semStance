@@ -6,7 +6,7 @@ from params import params
 from graph_att import graph_block
 
 class LSTMModel(nn.Module):
-    def __init__(self, embedding, embed_dims, num_edge_labels, num_graph_block, graph_dropout=0.5,
+    def __init__(self, embedding, embed_dims, num_edge_labels, num_graph_block, num_heads=10, graph_dropout=0.5,
                       classifier_mlp_hidden=16, bidirectional=True, dropout=0.1):
         super(LSTMModel, self).__init__()
         torch.manual_seed(params.torch_seed)
@@ -24,8 +24,7 @@ class LSTMModel(nn.Module):
             raise Exception("Unidirectional LSTM not supported")
         self.lstm_output_dims = self.lstm_input_dims * 2
 
-
-        self.node_feat_dims = self.lstm_output_dims // 2
+        self.node_feat_dims = self.embed_dims
         self.dropout_mlp = nn.Dropout(p=dropout)
         self.classifier_mlp = nn.Sequential(nn.Linear(self.node_feat_dims, classifier_mlp_hidden),
                                     nn.Tanh(), self.dropout_mlp,
@@ -33,16 +32,16 @@ class LSTMModel(nn.Module):
                                 ) # 4 labels = Support, Refute, unrelated, comment
         self.lstm = nn.LSTM(embed_dims+2, embed_dims + 2, bidirectional=True)
         self.post_lstm_linear = nn.Linear(self.lstm_output_dims, self.node_feat_dims)
-        
+
         self.att_score_linear = nn.Linear(self.node_feat_dims, 1)
- 
+
         self.__init_weights__()
         self.num_edge_labels = num_edge_labels
         self.edge_label_embed = nn.Embedding(num_edge_labels, self.node_feat_dims)
         torch.nn.init.uniform_(self.edge_label_embed.weight, -0.1, 0.1)
 
         if num_graph_block > 0:
-            self.graph_modules = nn.ModuleList([graph_block(self.node_feat_dims, graph_dropout) for i in range(num_graph_block)])
+            self.graph_modules = nn.ModuleList([graph_block(self.node_feat_dims, num_heads, dropout=graph_dropout) for i in range(num_graph_block)])
         else:
             self.graph_modules = [lambda x,y,z: x]
 
@@ -59,7 +58,7 @@ class LSTMModel(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-    def forward(self, texts, target_buyer_vector, pad_masks, edge_indices, edge_labels):
+    def forward(self, texts, target_buyer_vector, pad_masks, edge_indices, edge_labels, edge_masks):
         texts = self.embedding_layer(texts) * math.sqrt(self.embed_dims)
         texts = self.pos_encoder(texts)
         src_in = torch.cat((texts, target_buyer_vector), axis=2)
@@ -77,8 +76,10 @@ class LSTMModel(nn.Module):
         edge_attr = self.edge_label_embed(edge_labels)
 
         nodes_attr = graph_input.reshape(-1, self.node_feat_dims)
+        #print(nodes_attr.shape, edge_attr.shape, edge_masks.shape, edge_indices.shape)
         for module in self.graph_modules:
-            nodes_attr = module(nodes_attr, edge_indices, edge_attr)
+            #print(nodes_attr.shape, edge_attr.shape, edge_masks.shape, edge_indices.shape)
+            nodes_attr = module(nodes_attr, edge_indices, edge_attr, edge_masks)
         nodes_attr = nodes_attr.view(graph_input.size(0), -1, self.node_feat_dims)
 
         att_scores = self.att_score_linear(nodes_attr)
@@ -119,7 +120,7 @@ if __name__ == "__main__":
         return j
     embedding = open_it(params.glove_embed)
 
-    model = LSTMModel(embedding, 200, 200, 3, graph_dropout=0, dropout=0.0)
+    model = LSTMModel(embedding, 200, 200, 3, graph_dropout=0, dropout=0.0, num_heads=10)
     model = model.to(params.device)
 
     criterion = torch.nn.CrossEntropyLoss(reduction='mean')
@@ -128,8 +129,8 @@ if __name__ == "__main__":
     with torch.no_grad():
         for single_batch in train_dataset:
             # single_batch = train_dataset[0]
-            (texts, stances, pad_masks, target_buyr, edge_indices, edge_labels, _) = single_batch
-            scores = model(texts, target_buyr, pad_masks, edge_indices, edge_labels)
+            (texts, stances, pad_masks, target_buyr, edge_indices, edge_labels, _, edge_masks) = single_batch
+            scores = model(texts, target_buyr, pad_masks, edge_indices, edge_labels, edge_masks)
             loss.append(criterion(scores, stances).to("cpu").item())
             i += 1
             if i%100 == 0:
@@ -138,13 +139,13 @@ if __name__ == "__main__":
     # Karpathy test for avg = -ln(1/4)
 
     params = model.parameters()
-    opt = torch.optim.SGD(params, lr=0.001)
+    opt = torch.optim.Adam(params, lr=0.0001)
 
     model.train()
     single_batch = train_dataset[0]
-    (texts, stances, pad_masks, target_buyr, edge_indices, edge_labels, _) = single_batch
+    (texts, stances, pad_masks, target_buyr, edge_indices, edge_labels, _, edge_masks) = single_batch
     for i in range(10001):
-        scores = model(texts, target_buyr, pad_masks, edge_indices, edge_labels)
+        scores = model(texts, target_buyr, pad_masks, edge_indices, edge_labels, edge_masks)
         loss = criterion(scores, stances)
         loss.backward()
         opt.step()

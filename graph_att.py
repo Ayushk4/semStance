@@ -7,9 +7,10 @@ from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.nn.inits import reset, uniform
 
 class graph_block(nn.Module):
-    def __init__(self, feat_dims, dropout, use_norm=True):
+    def __init__(self, feat_dims, num_heads, dropout, use_norm=True):
         super(graph_block, self).__init__()
-        self.gcn = GraphConv(feat_dims, dropout)
+        assert type(use_norm) == type(True)
+        self.gcn = GraphConv(feat_dims, num_heads, dropout=dropout)
         if use_norm:
             self.norm1 = nn.LayerNorm(feat_dims)
             self.norm2 = nn.LayerNorm(feat_dims)
@@ -17,22 +18,23 @@ class graph_block(nn.Module):
             self.norm1 = self.norm2 = lambda x: x
         self.linear = nn.Linear(feat_dims, feat_dims)
 
-    def forward(self, x, edge_index, edge_attr):
+    def forward(self, x, edge_index, edge_attr, edge_masks):
         #print(x.shape, edge_index.shape, edge_attr.shape)
-        x = self.norm1(self.gcn(x, edge_index, edge_attr))
+        x = self.norm1(self.gcn(x, edge_index, edge_attr, edge_masks))
         x = self.norm2(x + self.linear(x))
         return x
 
 class GraphConv(MessagePassing):
-    def __init__(self, in_channels, dropout=0.5, aggr='mean', root_weight=True, bias=True, **kwargs):
+    def __init__(self, in_channels, num_heads, dropout=0.5, aggr='add', root_weight=True, bias=True, mh_dropout=0.1, **kwargs):
         super(GraphConv, self).__init__(aggr=aggr, **kwargs)
 
         self.in_channels = in_channels
         self.out_channels = in_channels
         in_c = in_channels
         self.dropout = dropout
-        self.nn = nn.Sequential(nn.Dropout(dropout), nn.Linear(in_c * 3, in_c), nn.LeakyReLU(0.2), nn.Linear(in_c, in_c))
+        self.nn = nn.Sequential(nn.Dropout(dropout), nn.Linear(in_c * 2, in_c), nn.LeakyReLU(0.2), nn.Linear(in_c, in_c))
         self.aggr = aggr
+        self.mh_att = nn.MultiheadAttention(in_channels, num_heads, dropout=mh_dropout)
 
         if root_weight:
             self.root = Parameter(torch.Tensor(self.in_channels, self.out_channels))
@@ -51,17 +53,26 @@ class GraphConv(MessagePassing):
         uniform(self.in_channels, self.root)
         uniform(self.in_channels, self.bias)
 
-    def forward(self, x, edge_index, edge_attr):
+    def forward(self, x, edge_index, edge_attr, edge_masks):
         x = x.unsqueeze(-1) if x.dim() == 1 else x
-        return self.propagate(edge_index, x=x, edge_attr=edge_attr)
+        return self.propagate(edge_index, x=x, edge_attr=edge_attr, edge_masks=edge_masks)
 
-    def message(self, x_i, x_j, edge_attr):
-        #print(x_i.shape, x_j.shape, edge_attr.shape, torch.cat([x_i, x_j, edge_attr], 1).shape)
-        aggr_out = self.nn(torch.cat([x_i, x_j, edge_attr], 1))
-        #print("aggr_out", aggr_out, aggr_out.shape)
-        #edge_mask.fill(-100000)
+    def message(self, x_i, x_j, edge_attr, edge_masks=None):
+        # assert type(edge_masks) != type(None)
+        #print(x_i.unsqueeze(1).shape, x_j.shape, edge_attr.shape, edge_masks.shape, torch.cat([x_i, x_j, edge_attr], 1).shape)
+        #aggr_out = self.nn(torch.cat([x_i, x_j, edge_attr], 1))
+        #aggr_out = self.nn(torch.cat([x_j, edge_attr], 1))
+        #aggr_out = aggr_out.repeat(edge_masks.shape[0], 1, 1)
 
-        return aggr_out
+        query = x_i.unsqueeze(1)
+        key = edge_attr.unsqueeze(1)
+        value = edge_attr.unsqueeze(1)
+        additive_mask = torch.zeros(edge_masks.shape).to(edge_masks.device).masked_fill(~edge_masks, -10000.0)
+        aggr_out, att_wt = self.mh_att(query, key, value, attn_mask=additive_mask)
+
+        #print("aggr_out", att_wt.shape, aggr_out.shape, att_wt.sum(), query.shape, key.shape, value.shape)
+
+        return aggr_out.squeeze(1)
 
     def update(self, aggr_out, x):
         if self.root is not None:
@@ -80,7 +91,7 @@ if __name__ == "__main__":
     import json
     dataset = wtwtDataset()
     train = dataset.train_dataset
-    
+
     def open_it(pth):
         fo = open(pth, "r")
         j = json.load(fo)
@@ -93,31 +104,32 @@ if __name__ == "__main__":
     embedding_layer = embedding_layer.to("cuda")
     embedding_layer.weight.requires_grad = False
 
-    g = graph_block(200, 0, use_norm=False).to("cuda")
+    g = graph_block(200, 10, 0, use_norm=False).to("cuda")
 
     data = datapoint = train[0]
     text = data[0]
     edge_indices = data[4]
     edge_attr = torch.randn(edge_indices.size(1), 200).to('cuda')
+    edge_masks = data[7]
     #print(edge_attr.shape, edge_indices.shape)
 
     embed = embedding_layer(text)
     embed = embed.view(-1, embed.shape[2])
     #print(edge_indices[0, :])
     #print(embed.shape)
-    x = g(embed, edge_indices, edge_attr)
+    x = g(embed, edge_indices, edge_attr, edge_masks)
+	
     #print(x.shape)
 
     criterion = torch.nn.MSELoss(reduction='sum')
     params = g.parameters()
-    opt = torch.optim.SGD(params, lr=0.3)
+    opt = torch.optim.Adam(params, lr=0.0004)
 
     print(data) 
-    exit()   
 
     g.train()
     for i in range(10000):
-        scores = g(embed, edge_indices, edge_attr)
+        scores = g(embed, edge_indices, edge_attr, edge_masks)
         loss = scores.abs().mean()
         loss.backward()
         opt.step()

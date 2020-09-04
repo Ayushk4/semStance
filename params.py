@@ -26,7 +26,7 @@ parser.add_argument("--graph_dropout", type=float, default=0.7, help="Dropout fo
 parser.add_argument("--dropout", type=float, default=0.5, help="Dropout for position encoder and MLP classifier.")
 parser.add_argument("--mlp_hidden", type=int, default=16, help="Hidden dims size for a 2 layer MLP used for bringing attention lstm to tag space")
 parser.add_argument("--glove_dims", type=int, default=glove_dims_, help="Dimensions of glove twitter embeddings.")
-# parser.add_argument("--lstm_input_dims", type=int, default=102, help="Input_dimensions for LSTM.")
+parser.add_argument("--num_heads", type=int, default=10, help="Number Heads for Graph att.")
 
 parser.add_argument("--dummy_run", dest="dummy_run", action="store_true", help="To make the model run on only one training sample for debugging")
 parser.add_argument("--device", type=str, default="cuda", help="name of the device to be used for training")
