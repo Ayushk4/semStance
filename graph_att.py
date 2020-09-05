@@ -20,7 +20,7 @@ class graph_block(nn.Module):
 
     def forward(self, x, edge_index, edge_attr, edge_masks):
         #print(x.shape, edge_index.shape, edge_attr.shape)
-        x = self.norm1(self.gcn(x, edge_index, edge_attr, edge_masks))
+        x = self.norm1(x + self.gcn(x, edge_index, edge_attr, edge_masks))
         x = self.norm2(x + self.linear(x))
         return x
 
@@ -32,9 +32,9 @@ class GraphConv(MessagePassing):
         self.out_channels = in_channels
         in_c = in_channels
         self.dropout = dropout
-        self.nn = nn.Sequential(nn.Dropout(dropout), nn.Linear(in_c * 3, in_c), nn.LeakyReLU(0.2))#, nn.Linear(in_c, in_c))
+        self.nn = nn.Sequential(nn.Dropout(dropout), nn.Linear(in_c * 2, in_c), nn.LeakyReLU(0.2), nn.Linear(in_c, in_c))
         self.aggr = aggr
-        self.mh_att = nn.MultiheadAttention(in_channels, num_heads, dropout=mh_dropout)
+        self.mh_att = nn.MultiheadAttention(in_channels * 2, num_heads, dropout=mh_dropout)
 
         if root_weight:
             self.root = Parameter(torch.Tensor(self.in_channels, self.out_channels))
@@ -60,24 +60,24 @@ class GraphConv(MessagePassing):
     def message(self, x_i, x_j, edge_attr, edge_masks=None):
         # assert type(edge_masks) != type(None)
         #print(x_i.unsqueeze(1).shape, x_j.shape, edge_attr.shape, edge_masks.shape, torch.cat([x_i, x_j, edge_attr], 1).shape)
-        aggr_out = self.nn(torch.cat([x_i, x_j, edge_attr], 1))
-        query = key = value = aggr_out.unsqueeze(1)
+        #aggr_out = self.nn(torch.cat([x_i, x_j, edge_attr], 1))
+        #query = key = value = aggr_out.unsqueeze(1)
         #aggr_out = self.nn(torch.cat([x_j, edge_attr], 1))
         #aggr_out = aggr_out.repeat(edge_masks.shape[0], 1, 1)
 
-        #query = x_i.unsqueeze(1)
-        #key = edge_attr.unsqueeze(1)
-        #value = edge_attr.unsqueeze(1)
+        query = torch.cat([x_i, edge_attr], 1).unsqueeze(1)
+        key = torch.cat([x_i, x_j], 1).unsqueeze(1)
+        value = torch.cat([x_j, edge_attr], 1).unsqueeze(1)
         additive_mask = torch.zeros(edge_masks.shape).to(edge_masks.device).masked_fill(~edge_masks, -10000.0)
         aggr_out, att_wt = self.mh_att(query, key, value, attn_mask=additive_mask)
 
         #print("aggr_out", att_wt.shape, att_wt, aggr_out.shape, att_wt.sum(), query.shape, key.shape, value.shape)
 
-        return aggr_out.squeeze(1)
+        return self.nn(aggr_out.squeeze(1))
 
     def update(self, aggr_out, x):
         if self.root is not None:
-            aggr_out = aggr_out + torch.mm(x, self.root)
+            aggr_out = aggr_out + x#torch.mm(x, self.root)
         if self.bias is not None:
             aggr_out = aggr_out + self.bias
         return aggr_out
