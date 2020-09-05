@@ -38,7 +38,7 @@ def train(model, dataset, criterion):
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
-        scheduler.step()
+        #scheduler.step()
 
         if num_batch % 100 == 0:
             print("Train loss at {}:".format(num_batch), loss.item())
@@ -144,8 +144,8 @@ def my_fancy_optimizer(warmup_proportion=0.1):
 
 #criterion = torch.nn.CrossEntropyLoss(weight=dataset_object.criterion_weights, reduction='sum')
 criterion = torch.nn.CrossEntropyLoss(reduction='sum')
-optimizer, scheduler = my_fancy_optimizer()
-#optimizer = torch.optim.Adam(model.parameters(), lr = params.lr)
+#optimizer, scheduler = my_fancy_optimizer()
+optimizer = torch.optim.Adam(model.parameters(), lr = params.lr)
 
 valid_loss, confuse_mat, classify_report = evaluate(model, eval_dataset, criterion, target_names)
 print(valid_loss)
