@@ -6,8 +6,8 @@ from params import params
 from graph_att import graph_block
 
 class LSTMModel(nn.Module):
-    def __init__(self, embedding, embed_dims, num_edge_labels, num_graph_block, num_heads=10, graph_dropout=0.5,
-                      classifier_mlp_hidden=16, bidirectional=True, dropout=0.1):
+    def __init__(self, embedding, embed_dims, num_edge_labels, num_trans_block, num_graph_block, num_heads=5, graph_dropout=0.5,
+                      classifier_mlp_hidden=16, bidirectional=True, dropout=0.5):
         super(LSTMModel, self).__init__()
         torch.manual_seed(params.torch_seed)
 
@@ -17,12 +17,6 @@ class LSTMModel(nn.Module):
         self.embed_dims = embed_dims
         if not params.concat:
             raise Exception("Bad idea! for params.concat")
-        self.lstm_input_dims = embed_dims+2
-
-        self.bidirection = bidirectional
-        if not bidirectional:
-            raise Exception("Unidirectional LSTM not supported")
-        self.lstm_output_dims = self.lstm_input_dims * 2
 
         self.node_feat_dims = self.embed_dims
         self.dropout_mlp = nn.Dropout(p=dropout)
@@ -30,9 +24,11 @@ class LSTMModel(nn.Module):
                                     nn.Tanh(), self.dropout_mlp,
                                     nn.Linear(classifier_mlp_hidden, 4),
                                 ) # 4 labels = Support, Refute, unrelated, comment
-        self.lstm = nn.LSTM(embed_dims+2, embed_dims + 2, bidirectional=True)
-        self.post_lstm_linear = nn.Linear(self.lstm_output_dims, self.node_feat_dims)
 
+        self.pre_trans_linear = nn.Linear(embed_dims + 2, self.node_feat_dims)
+        self.trans_enc_layer = nn.TransformerEncoderLayer(self.node_feat_dims, num_heads,
+                                                          dim_feedforward = self.node_feat_dims*4)
+        self.trans_layers = nn.TransformerEncoder(self.trans_enc_layer, num_trans_block, nn.LayerNorm(self.node_feat_dims))
         self.att_score_linear = nn.Linear(self.node_feat_dims, 1)
 
         self.__init_weights__()
@@ -43,10 +39,7 @@ class LSTMModel(nn.Module):
         if num_graph_block > 0:
             self.graph_modules = nn.ModuleList([graph_block(self.node_feat_dims, num_heads, dropout=graph_dropout) for i in range(num_graph_block)])
         else:
-            self.graph_modules = [lambda x,y,z: x]
-
-        self.hidden = (torch.autograd.Variable(torch.zeros(2, 1, embed_dims+2)).to(params.device),   
-                        torch.autograd.Variable(torch.zeros(2, 1, embed_dims+2)).to(params.device))
+            self.graph_modules = [lambda x,y,z,w: x]
 
         self.embedding_layer = nn.Embedding(len(embedding), embed_dims, padding_idx=self.padding_idx)
         self.embedding_layer.weight.data.copy_(torch.Tensor(embedding))
@@ -65,20 +58,15 @@ class LSTMModel(nn.Module):
 
         # if self.input_dims != self.embed_dims + 2:
         #     src_in = self.embed2input_space(src_in)
-        src_in = src_in.permute(1, 0, 2)
+        src_in = self.pre_trans_linear(src_in).permute(1,0,2)
 
-        h, c = (self.hidden[0].expand(-1, src_in.shape[1], -1).contiguous(),
-                self.hidden[0].expand(-1, src_in.shape[1], -1).contiguous())
-        l_out, _ = self.lstm(src_in, (h ,c))
-        lstm_output =l_out.permute(1, 0, 2)
-
-        graph_input = self.post_lstm_linear(lstm_output)
+        additive_mask = torch.zeros(pad_masks.shape).to(pad_masks.device).masked_fill(pad_masks, -10000.0)
+        trans_out = self.trans_layers(src_in, src_key_padding_mask=pad_masks)
+        graph_input = trans_out.permute(1, 0, 2)
         edge_attr = self.edge_label_embed(edge_labels)
 
         nodes_attr = graph_input.reshape(-1, self.node_feat_dims)
-        #print(nodes_attr.shape, edge_attr.shape, edge_masks.shape, edge_indices.shape)
         for module in self.graph_modules:
-            #print(nodes_attr.shape, edge_attr.shape, edge_masks.shape, edge_indices.shape)
             nodes_attr = module(nodes_attr, edge_indices, edge_attr, edge_masks)
         nodes_attr = nodes_attr.view(graph_input.size(0), -1, self.node_feat_dims)
 
@@ -120,7 +108,7 @@ if __name__ == "__main__":
         return j
     embedding = open_it(params.glove_embed)
 
-    model = LSTMModel(embedding, 200, 200, 3, graph_dropout=0, dropout=0.0, num_heads=10)
+    model = LSTMModel(embedding, 200, 200, 3, 0, graph_dropout=0, dropout=0.0, num_heads=10)
     model = model.to(params.device)
 
     criterion = torch.nn.CrossEntropyLoss(reduction='mean')
