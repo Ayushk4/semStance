@@ -32,9 +32,11 @@ class GraphConv(MessagePassing):
         self.out_channels = in_channels
         in_c = in_channels
         self.dropout = dropout
-        self.nn = nn.Sequential(nn.Dropout(dropout), nn.Linear(in_c * 2, in_c), nn.LeakyReLU(0.2), nn.Linear(in_c, in_c))
+        self.att_nn = nn.Sequential(nn.Dropout(dropout), nn.Linear(in_c*3, in_c, bias=True), nn.Tanh(),
+                                    nn.Linear(in_c, 1, bias=False), nn.LeakyReLU(0.2))
+        self.nn = nn.Linear(in_c, in_c)
         self.aggr = aggr
-        self.mh_att = nn.MultiheadAttention(in_channels, num_heads, dropout=mh_dropout)
+        #self.mh_att = nn.MultiheadAttention(in_channels, num_heads, dropout=mh_dropout)
 
         if root_weight:
             self.root = Parameter(torch.Tensor(self.in_channels, self.out_channels))
@@ -58,21 +60,13 @@ class GraphConv(MessagePassing):
         return self.propagate(edge_index, x=x, edge_attr=edge_attr, edge_masks=edge_masks)
 
     def message(self, x_i, x_j, edge_attr, edge_masks=None):
-        # assert type(edge_masks) != type(None)
-        #print(x_i.unsqueeze(1).shape, x_j.shape, edge_attr.shape, edge_masks.shape, torch.cat([x_i, x_j, edge_attr], 1).shape)
-        #aggr_out = self.nn(torch.cat([x_i, x_j, edge_attr], 1))
-        #aggr_out = self.nn(torch.cat([x_j, edge_attr], 1))
-        #aggr_out = aggr_out.repeat(edge_masks.shape[0], 1, 1)
+        w_x = [self.nn(x_i), self.nn(x_j), self.nn(edge_attr)]
+        att_scores = self.att_nn(torch.cat(w_x, 1)).squeeze(1)
+        att_scores_e = att_scores.expand(att_scores.shape[0], att_scores.shape[0])
+        att_scores_softmaxed = att_scores_e.masked_fill(~edge_masks, -10000.0).softmax(1)
+        # print(att_scores.shape, att_scores_e.shape, att_scores_softmaxed.shape, x_j.shape, att_scores_softmaxed.sum(), att_scores_softmaxed.min(), att_scores_softmaxed.max(), att_scores_softmaxed.diagonal())
 
-        query = x_i.unsqueeze(1)
-        key = edge_attr.unsqueeze(1)
-        value = edge_attr.unsqueeze(1)
-        additive_mask = torch.zeros(edge_masks.shape).to(edge_masks.device).masked_fill(~edge_masks, -10000.0)
-        aggr_out, att_wt = self.mh_att(query, key, value, attn_mask=additive_mask)
-
-        #print("aggr_out", att_wt.shape, aggr_out.shape, att_wt.sum(), query.shape, key.shape, value.shape)
-
-        return aggr_out.squeeze(1)
+        return w_x[1] * att_scores_softmaxed.diagonal().unsqueeze(1)
 
     def update(self, aggr_out, x):
         if self.root is not None:
@@ -118,8 +112,7 @@ if __name__ == "__main__":
     #print(edge_indices[0, :])
     #print(embed.shape)
     x = g(embed, edge_indices, edge_attr, edge_masks)
-	
-    #print(x.shape)
+    print("\n\n=============\n\n", x.shape)
 
     criterion = torch.nn.MSELoss(reduction='sum')
     params = g.parameters()

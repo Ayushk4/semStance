@@ -80,7 +80,7 @@ class LSTMModel(nn.Module):
         for module in self.graph_modules:
             #print(nodes_attr.shape, edge_attr.shape, edge_masks.shape, edge_indices.shape)
             nodes_attr = module(nodes_attr, edge_indices, edge_attr, edge_masks)
-        nodes_attr = nodes_attr.view(graph_input.size(0), -1, self.node_feat_dims)
+        nodes_attr = nodes_attr.view(graph_input.size(0), -1, self.node_feat_dims) + graph_input
 
         att_scores = self.att_score_linear(nodes_attr)
         att_scores = att_scores.masked_fill(pad_masks.unsqueeze(-1), -10000.0).softmax(1)

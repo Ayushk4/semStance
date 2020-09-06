@@ -10,7 +10,7 @@ num_edge_labels = 26
 parser.add_argument("--python_seed", type=int, default=49)
 parser.add_argument("--torch_seed", type=int, default=4214)
 parser.add_argument("--target_merger", type=str, default="Please Enter Test Merger in args", help="Test Merger in 'CVS_AET', 'ANTM_CI', 'AET_HUM', 'CI_ESRX'")
-parser.add_argument("--test_mode", type=str, default="True")
+parser.add_argument("--test_mode", type=str, default="False")
 parser.add_argument("--cross_valid_num", type=int, default=4, help="For 5-fold crossvalidation, which part is valid set.")
 
 parser.add_argument("--dataset_path", type=str, default=dataset_path)
@@ -18,7 +18,7 @@ parser.add_argument("--glove_embed", type=str, default=glove_embed)
 
 parser.add_argument("--batch_size", type=int, default=16)
 parser.add_argument("--lr", type=float, default=1e-4)
-parser.add_argument("--n_epochs", type=int, default=100)
+parser.add_argument("--n_epochs", type=int, default=50)
  
 parser.add_argument("--num_graph_blocks", type=int, default=3, help="Number of graph layers stacked up.")
 parser.add_argument("--graph_dropout", type=float, default=0.7, help="Dropout for graph model and its layers.")
