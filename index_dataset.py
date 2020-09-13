@@ -52,7 +52,7 @@ for item in dataset:
 
     indexed_item = item.copy()
     indexed_item["text"] = indexed_tokens
-
+    indexed_item["raw_text"] = item["text"]
     indexed_dataset.append(indexed_item)
 
 # Save idx2word, glove embed matrix, indexed dataset

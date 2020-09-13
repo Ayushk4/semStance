@@ -2,7 +2,7 @@ data/data
 sdp/graphs
 sdp/data
 sdp/
-
+*_*.pkl
 glove
 checkpoints
 wandb

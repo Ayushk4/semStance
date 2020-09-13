@@ -10,7 +10,7 @@ num_edge_labels = 26
 parser.add_argument("--python_seed", type=int, default=49)
 parser.add_argument("--torch_seed", type=int, default=4214)
 parser.add_argument("--target_merger", type=str, default="Please Enter Test Merger in args", help="Test Merger in 'CVS_AET', 'ANTM_CI', 'AET_HUM', 'CI_ESRX'")
-parser.add_argument("--test_mode", type=str, default="False")
+parser.add_argument("--test_mode", type=str, default="True")
 parser.add_argument("--cross_valid_num", type=int, default=4, help="For 5-fold crossvalidation, which part is valid set.")
 
 parser.add_argument("--dataset_path", type=str, default=dataset_path)
@@ -34,6 +34,7 @@ parser.add_argument("--concat", type=bool, default=True, help="Whether [0, 1] fo
 
 parser.add_argument("--run", type=str, default=None)
 parser.add_argument("--wandb",  dest="wandb", action="store_true", default=False)
+parser.add_argument("--bert_type", type=str, default="bert-base-uncased")
 
 params = parser.parse_args()
 
