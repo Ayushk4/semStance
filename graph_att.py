@@ -7,10 +7,11 @@ from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.nn.inits import reset, uniform
 
 class graph_block(nn.Module):
-    def __init__(self, feat_dims, num_heads, dropout, use_norm=True):
+    def __init__(self, feat_dims, dropout, use_norm=True):
+        assert type(use_norm) == type(True) and type(dropout) == float
         super(graph_block, self).__init__()
         assert type(use_norm) == type(True)
-        self.gcn = GraphConv(feat_dims, num_heads, dropout=dropout)
+        self.gcn = GraphConv(feat_dims, dropout=dropout)
         if use_norm:
             self.norm1 = nn.LayerNorm(feat_dims)
             self.norm2 = nn.LayerNorm(feat_dims)
@@ -25,7 +26,7 @@ class graph_block(nn.Module):
         return x
 
 class GraphConv(MessagePassing):
-    def __init__(self, in_channels, num_heads, dropout=0.5, aggr='add', root_weight=True, bias=True, mh_dropout=0.1, **kwargs):
+    def __init__(self, in_channels, dropout=0.5, aggr='add', root_weight=True, bias=True, mh_dropout=0.1, **kwargs):
         super(GraphConv, self).__init__(aggr=aggr, **kwargs)
 
         self.in_channels = in_channels
